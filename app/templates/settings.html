@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>設定 - KabeUchi</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app-container settings-container">
+        <!-- サイドバー -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <a href="{{ url_for('index') }}" class="app-title-link">
+                    <h2>KabeUchi</h2>
+                </a>
+            </div>
+            <div class="sidebar-nav">
+                <a href="{{ url_for('index') }}" class="nav-link">
+                    <span class="icon">📝</span>
+                    エディタに戻る
+                </a>
+                <a href="{{ url_for('manage_documents') }}" class="nav-link">
+                    <span class="icon">📋</span>
+                    ドキュメント管理
+                </a>
+                <div class="nav-link active">
+                    <span class="icon">⚙️</span>
+                    設定
+                </div>
+            </div>
+        </div>
+        
+        <!-- メインコンテンツ -->
+        <div class="main-content settings-content">
+            <div class="settings-header">
+                <h1>設定</h1>
+            </div>
+            
+            <div class="settings-section api-keys">
+                <h2>APIキー設定</h2>
+                <p>利用するAIモデルのAPIキーを入力してください。</p>
+                
+                <div class="form-group">
+                    <label for="openai-key">OpenAI API Key:</label>
+                    <input type="password" id="openai-key" placeholder="APIキーを入力してください">
+                </div>
+                
+                <div class="form-group">
+                    <label for="google-key">Google API Key:</label>
+                    <input type="password" id="google-key" placeholder="APIキーを入力してください">
+                </div>
+                
+                <div class="form-group">
+                    <label for="anthropic-key">Anthropic API Key:</label>
+                    <input type="password" id="anthropic-key" placeholder="APIキーを入力してください">
+                </div>
+                
+                <button id="save-api-keys-btn" class="primary-btn">APIキーを保存</button>
+                <div id="api-save-status" class="save-status"></div>
+            </div>
+            
+            <!-- 他の設定項目があればここに追加 -->
+            
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+</body>
+</html> 

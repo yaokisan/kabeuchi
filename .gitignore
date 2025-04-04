@@ -1,0 +1,25 @@
+# 仮想環境
+venv/
+.venv/
+
+# Pythonキャッシュ
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# データベースファイル
+wallbounce.db
+*.db
+instance/
+
+# OS固有ファイル
+.DS_Store
+Thumbs.db
+
+# .env ファイル (APIキーなどの機密情報)
+.env
+
+# IDE/エディタ設定ファイル
+.idea/
+.vscode/ 

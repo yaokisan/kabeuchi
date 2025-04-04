@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KabeUchi - 思考の壁打ちアプリ</title>
+    <!-- QuillJSスタイルシート -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <!-- カスタムCSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- サイドバー -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <a href="{{ url_for('index') }}" class="app-title-link">
+                    <h2>KabeUchi</h2>
+                </a>
+            </div>
+            
+            <!-- 新規ドキュメント作成ボタン -->
+            <button id="new-document-btn" class="primary-btn pulse-animation">新規ドキュメント</button>
+            
+            <!-- マイク操作トグル -->
+            <div class="mic-toggle">
+                <label for="mic-toggle-switch">音声入力:</label>
+                <label class="switch">
+                    <input type="checkbox" id="mic-toggle-switch">
+                    <span class="slider round"></span>
+                </label>
+                <div id="mic-status">オフ</div>
+            </div>
+            
+            <!-- AIモデル選択 -->
+            <div class="model-selector">
+                <label for="ai-model">AIモデル:</label>
+                <select id="ai-model">
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                    <option value="gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro</option>
+                    <option value="claude-3.7-sonnet">Claude 3.7 Sonnet</option>
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="gpt-4.5-preview">GPT-4.5 Preview</option>
+                </select>
+            </div>
+            
+            <!-- Claude思考モード（Claudeモデル選択時のみ表示） -->
+            <div id="claude-thinking-mode" class="thinking-mode" style="display: none;">
+                <label for="thinking-toggle">思考モード:</label>
+                <label class="switch">
+                    <input type="checkbox" id="thinking-toggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            
+            <!-- 最近のドキュメント一覧 -->
+            <div class="recent-documents">
+                <h3>最近のドキュメント</h3>
+                <ul id="recent-docs-list">
+                    <!-- 動的に追加されます -->
+                </ul>
+            </div>
+            
+            <!-- ドキュメント管理ページへのリンク -->
+            <a href="{{ url_for('manage_documents') }}" class="manage-link">ドキュメント管理</a>
+            <!-- 設定ページへのリンク -->
+            <a href="{{ url_for('settings') }}" class="settings-link">設定</a>
+        </div>
+        
+        <!-- メインコンテンツエリア -->
+        <div class="main-content">
+            <!-- ドキュメントタイトル -->
+            <div class="document-header">
+                <input type="text" id="document-title" placeholder="ドキュメントタイトル" value="無題のドキュメント">
+                <div class="document-actions">
+                    <button id="save-document-btn" class="action-btn" title="保存">
+                        <span class="btn-icon">💾</span>
+                    </button>
+                </div>
+                <div id="save-status">保存済み</div>
+            </div>
+            
+            <!-- エディタコンテナ -->
+            <div id="editor-container">
+                <!-- QuillJSエディタが挿入されます -->
+            </div>
+            
+            <!-- 音声認識オーバーレイ -->
+            <div id="speech-overlay" class="speech-overlay" style="display: none;">
+                <div class="speech-content">
+                    <div class="speech-indicator">
+                        <div class="speech-waves">
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                    </div>
+                    <div id="speech-text">音声を認識中...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- チャットエリア -->
+        <div class="chat-area">
+            <div class="chat-resize-handle"></div>
+            <div class="chat-header">
+                <h3>AIチャット</h3>
+            </div>
+            
+            <div class="chat-messages" id="chat-messages">
+                <!-- チャットメッセージが動的に追加されます -->
+            </div>
+            
+            <div class="chat-input-container">
+                <textarea id="chat-input" placeholder="メッセージを入力..."></textarea>
+                <button id="send-chat-btn">送信</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- QuillJSライブラリ -->
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <!-- marked.jsライブラリ (Markdownレンダリング用) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- カスタムJavaScript -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/speech.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat-resize.js') }}"></script>
+</body>
+</html> 
