@@ -105,12 +105,18 @@
             <div class="chat-resize-handle"></div>
             <div class="chat-header">
                 <h3>AIチャット</h3>
+                <button id="reset-chat-btn" class="reset-btn" title="チャット履歴をリセット">🗑️</button>
             </div>
             
             <div class="chat-messages" id="chat-messages">
                 <!-- チャットメッセージが動的に追加されます -->
             </div>
             
+            <!-- 追加されたコンテキストインジケーター (初期非表示) -->
+            <div id="chat-context-indicator" class="context-indicator" style="display: none;">
+                <span>text</span>
+                <button id="clear-chat-context-btn" class="clear-context-btn">×</button>
+            </div>
             <div class="chat-input-container">
                 <textarea id="chat-input" placeholder="メッセージを入力..."></textarea>
                 <button id="send-chat-btn">送信</button>
@@ -124,8 +130,8 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- カスタムJavaScript -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
     <script src="{{ url_for('static', filename='js/speech.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chat-resize.js') }}"></script>
 </body>

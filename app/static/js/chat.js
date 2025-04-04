@@ -5,6 +5,7 @@
 // グローバル変数
 let currentChatModel = localStorage.getItem('lastSelectedAIModel') || 'gemini-2.0-flash'; // デフォルト値を設定し、ローカルストレージから取得
 let thinkingEnabled = false;
+let currentChatContext = null; // 追加されたコンテキストテキストを保持する変数
 
 // DOMが読み込まれた後に実行
 document.addEventListener('DOMContentLoaded', function() {
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     setupChatEvents();
+    setupContextIndicatorEvents(); // インジケーターのイベント設定を追加
     
     // AIモデルの初期選択を復元
     restoreLastSelectedModel();
@@ -32,6 +34,9 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupChatEvents() {
     // チャット送信ボタン
     document.getElementById('send-chat-btn').addEventListener('click', sendChatMessage);
+    
+    // チャット履歴リセットボタン
+    document.getElementById('reset-chat-btn').addEventListener('click', resetChatHistory);
     
     const chatInput = document.getElementById('chat-input');
     
@@ -75,32 +80,36 @@ function setupChatEvents() {
 }
 
 /**
+ * コンテキストインジケーター関連のイベントを設定
+ */
+function setupContextIndicatorEvents() {
+    document.getElementById('clear-chat-context-btn').addEventListener('click', clearContext);
+}
+
+/**
  * チャットメッセージを送信
  */
 function sendChatMessage() {
     const chatInput = document.getElementById('chat-input');
     const message = chatInput.value.trim();
     
-    if (!message) return;
+    // メッセージが空でもコンテキストがあれば送信を許可（コンテキストに関する質問など）
+    if (!message && !currentChatContext) return;
     
-    // 現在のドキュメントIDを取得
     const documentId = window.editorAPI.getCurrentDocumentId();
     if (!documentId) {
         alert('ドキュメントが読み込まれていません。');
         return;
     }
     
-    // 送信前に入力欄をクリア
     chatInput.value = '';
-    
-    // ユーザーメッセージをUIに追加
     addMessageToChat('user', message);
-    
-    // 待機中インジケータを表示
     const loadingElement = createLoadingIndicator();
     document.getElementById('chat-messages').appendChild(loadingElement);
     
-    // AIのレスポンスを取得
+    // ★ 変更点: selected_text の代わりに currentChatContext を使う
+    const contextToSend = currentChatContext; // 送信するコンテキストを保持
+    
     fetch(`/api/chat/send/${documentId}`, {
         method: 'POST',
         headers: {
@@ -109,7 +118,9 @@ function sendChatMessage() {
         body: JSON.stringify({
             message: message,
             model: currentChatModel,
-            thinking_enabled: thinkingEnabled
+            thinking_enabled: thinkingEnabled,
+            // selected_text: selectedText // ← 削除
+            chat_context: contextToSend // 新しく chat_context を追加
         })
     })
     .then(response => {
@@ -119,30 +130,23 @@ function sendChatMessage() {
         return response.json();
     })
     .then(data => {
-        // 待機中インジケータを削除
         if (loadingElement && loadingElement.parentNode) {
             loadingElement.parentNode.removeChild(loadingElement);
         }
-        
-        // AIメッセージをUIに追加
         addMessageToChat('assistant', data.message);
-        
-        // チャットエリアを最下部にスクロール
         scrollChatToBottom();
+        // ★ 送信成功後にコンテキストをクリア
+        clearContext(); 
     })
     .catch(error => {
         console.error('チャットエラー:', error);
-        
-        // 待機中インジケータを削除
         if (loadingElement && loadingElement.parentNode) {
             loadingElement.parentNode.removeChild(loadingElement);
         }
-        
-        // エラーメッセージを表示
         addMessageToChat('assistant', 'エラーが発生しました。しばらく経ってからもう一度お試しください。');
-        
-        // チャットエリアを最下部にスクロール
         scrollChatToBottom();
+        // エラー時もコンテキストをクリアするかどうかは要件次第ですが、一旦クリアします
+        clearContext();
     });
 }
 
@@ -286,5 +290,79 @@ function restoreLastSelectedModel() {
     }
 }
 
-// 他のJSファイルから呼び出せるようにグローバルに公開
-window.restoreLastSelectedModel = restoreLastSelectedModel; 
+/**
+ * AIチャットのコンテキストを設定し、インジケーターを表示する
+ * @param {string} contextText - 設定するコンテキストテキスト
+ */
+function setContext(contextText) {
+    currentChatContext = contextText;
+    const indicator = document.getElementById('chat-context-indicator');
+    indicator.style.display = 'flex'; // 表示 (flexを使うと中の要素が横並びになる)
+    console.log('チャットコンテキストを設定:', currentChatContext);
+}
+
+/**
+ * AIチャットのコンテキストをクリアし、インジケーターを非表示にする
+ */
+function clearContext() {
+    currentChatContext = null;
+    const indicator = document.getElementById('chat-context-indicator');
+    indicator.style.display = 'none';
+    console.log('チャットコンテキストをクリアしました');
+}
+
+/**
+ * AIとのチャット履歴をリセットする
+ */
+function resetChatHistory() {
+    const confirmed = confirm('AIとのチャット履歴をリセットしますか？\nこの操作は元に戻せません。');
+    if (!confirmed) {
+        return;
+    }
+
+    const documentId = window.editorAPI.getCurrentDocumentId();
+    if (!documentId) {
+        alert('ドキュメントが読み込まれていません。');
+        return;
+    }
+
+    // サーバーにチャット履歴のリセットをリクエスト
+    fetch(`/api/chat/reset/${documentId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('チャット履歴のリセットに失敗しました。');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // UIのチャット履歴をクリア
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.innerHTML = '';
+            console.log('チャット履歴がリセットされました。');
+            // 必要であれば、ユーザーに通知などを表示
+            // addMessageToChat('system', 'チャット履歴がリセットされました。');
+        } else {
+            alert('チャット履歴のリセットに失敗しました。');
+        }
+    })
+    .catch(error => {
+        console.error('チャットリセットエラー:', error);
+        alert('チャット履歴のリセット中にエラーが発生しました。');
+    });
+}
+
+// 他のJSファイルから呼び出せるようにAPIを公開
+window.chatAPI = {
+    setContext: setContext,
+    clearContext: clearContext
+};
+
+// 既存の公開関数も chatAPI にまとめる方が整理されるかも
+// window.restoreLastSelectedModel = restoreLastSelectedModel;
+// window.loadChatHistory = loadChatHistory; 

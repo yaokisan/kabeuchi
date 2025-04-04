@@ -31,6 +31,24 @@ if ANTHROPIC_API_KEY:
 else:
     anthropic_client = None
 
+@chat_bp.route('/reset/<int:doc_id>', methods=['POST'])
+def reset_chat_history(doc_id):
+    """指定されたドキュメントIDに関連するチャット履歴を削除"""
+    try:
+        # ドキュメントが存在するか確認（任意）
+        document = Document.query.get_or_404(doc_id)
+        
+        # 該当ドキュメントIDのチャットメッセージを全て削除
+        num_deleted = ChatMessage.query.filter_by(document_id=doc_id).delete()
+        db.session.commit()
+        
+        print(f"ドキュメントID {doc_id} のチャット履歴を {num_deleted} 件削除しました。")
+        return jsonify({'success': True, 'message': 'チャット履歴がリセットされました。'}), 200
+    except Exception as e:
+        db.session.rollback() # エラー発生時はロールバック
+        print(f"チャット履歴のリセット中にエラーが発生しました: {str(e)}", file=sys.stderr)
+        return jsonify({'success': False, 'message': 'チャット履歴のリセットに失敗しました。'}), 500
+
 @chat_bp.route('/history/<int:doc_id>', methods=['GET'])
 def get_chat_history(doc_id):
     """指定されたドキュメントIDに関連するチャット履歴を取得"""
@@ -47,6 +65,7 @@ def send_message(doc_id):
     user_message = data.get('message', '')
     model_name = data.get('model', 'gemini-2.0-flash')
     thinking_enabled = data.get('thinking_enabled', False)
+    chat_context = data.get('chat_context')
     
     # ユーザーメッセージをデータベースに保存
     user_chat = ChatMessage(
@@ -71,17 +90,17 @@ def send_message(doc_id):
             # Googleのキーが設定されていない場合はエラー
             if not GOOGLE_API_KEY:
                 raise ValueError("Google API Keyが設定されていません。.envファイルを確認してください。")
-            ai_response = get_gemini_response(model_name, context, chat_history, user_message)
+            ai_response = get_gemini_response(model_name, context, chat_history, user_message, chat_context)
         elif model_name.startswith('claude'):
             # Anthropicのキーが設定されていない場合はエラー
             if not ANTHROPIC_API_KEY:
                 raise ValueError("Anthropic API Keyが設定されていません。.envファイルを確認してください。")
-            ai_response = get_claude_response(model_name, context, chat_history, user_message, thinking_enabled)
+            ai_response = get_claude_response(model_name, context, chat_history, user_message, thinking_enabled, chat_context)
         elif model_name.startswith('gpt'):
             # OpenAIのキーが設定されていない場合はエラー
             if not OPENAI_API_KEY:
                 raise ValueError("OpenAI API Keyが設定されていません。.envファイルを確認してください。")
-            ai_response = get_openai_response(model_name, context, chat_history, user_message)
+            ai_response = get_openai_response(model_name, context, chat_history, user_message, chat_context)
         else:
             ai_response = "エラー: サポートされていないモデルが指定されました。"
     except Exception as e:
@@ -105,7 +124,7 @@ def send_message(doc_id):
         'thinking_enabled': thinking_enabled
     })
 
-def get_gemini_response(model_name, context, chat_history, user_message):
+def get_gemini_response(model_name, context, chat_history, user_message, chat_context):
     """Google Geminiモデルを使用して応答を生成"""
     # チャット履歴の作成
     chat_history_formatted = []
@@ -115,43 +134,72 @@ def get_gemini_response(model_name, context, chat_history, user_message):
         else:
             chat_history_formatted.append({"role": "model", "parts": [msg.content]})
     
-    # モデルの選択
     model = genai.GenerativeModel(model_name)
     
-    # コンテキスト情報を追加
-    system_prompt = f"""あなたはユーザーのアシスタントとして、ユーザーがチャットで入力した内容に応じて適切な内容を出力します。
+    # システムプロンプトの組み立て
+    system_prompt_base = f"""あなたはユーザーのアシスタントとして、ユーザーがチャットで入力した内容に応じて適切な内容を出力します。
 
 このチャットでは、あなたとユーザーの過去の会話履歴が自動的に提供されます。過去の会話のコンテキストを考慮して返答してください。ユーザーが過去の会話内容に言及した場合は、その履歴を参照して適切に応答してください。
 
 また、以下のドキュメントはユーザーが現在作成している内容で、この内容についての会話がこのチャットでは実施されます。
+--- ドキュメントここから ---
 {context}
+--- ドキュメントここまで ---
 """
     
+    # 選択テキスト -> チャットコンテキスト がある場合の追加指示
+    if chat_context:
+        system_prompt = system_prompt_base + f"""\n\n重要: ユーザーは以下のテキストを現在の会話の最重要コンテキストとして指定しました。ユーザーの指示が曖昧な場合（例：「これについて教えて」）、直前の会話履歴よりもまず、この追加コンテキストについて言及・回答することを最優先してください。
+--- 追加コンテキストここから ---
+{chat_context}
+--- 追加コンテキストここまで ---
+"""
+    else:
+        system_prompt = system_prompt_base
+
     # チャットセッションの作成とレスポンスの取得
+    # Geminiではシステムプロンプトを最初のユーザーメッセージに含めることが多い
+    # 履歴が空の場合、または最初のメッセージがシステムプロンプトでない場合に挿入
+    if not chat_history_formatted or chat_history_formatted[0].get('role') != 'user' or not chat_history_formatted[0].get('parts',[''])[0].startswith('あなたは'):
+         # 既存の履歴の前にシステムプロンプトをユーザーメッセージとして追加
+         # 厳密には履歴の扱い方によりますが、ここでは会話の最初にシステム指示を置く想定
+         chat_history_formatted.insert(0, {"role": "user", "parts": [system_prompt]})
+         # 応答を期待しないため、空のモデル応答を追加
+         chat_history_formatted.insert(1, {"role": "model", "parts": ["承知しました。"]})
+
     chat = model.start_chat(history=chat_history_formatted)
-    response = chat.send_message([system_prompt, user_message])
+    response = chat.send_message(user_message)
     
     return response.text
 
-def get_claude_response(model_name, context, chat_history, user_message, thinking_enabled):
+def get_claude_response(model_name, context, chat_history, user_message, thinking_enabled, chat_context):
     """Anthropic Claudeモデルを使用して応答を生成"""
-    # チャット履歴の作成
     messages = []
     
-    # システムプロンプトを追加
-    system_prompt = f"""あなたはユーザーのアシスタントとして、ユーザーがチャットで入力した内容に応じて適切な内容を出力します。
+    # システムプロンプトの組み立て
+    system_prompt_base = f"""あなたはユーザーのアシスタントとして、ユーザーがチャットで入力した内容に応じて適切な内容を出力します。
 
 このチャットでは、あなたとユーザーの過去の会話履歴が自動的に提供されます。過去の会話のコンテキストを考慮して返答してください。ユーザーが過去の会話内容に言及した場合は、その履歴を参照して適切に応答してください。
 
 また、以下のドキュメントはユーザーが現在作成している内容で、この内容についての会話がこのチャットでは実施されます。
+--- ドキュメントここから ---
 {context}
+--- ドキュメントここまで ---
 """
     
-    messages.append({
-        "role": "system",
-        "content": system_prompt
-    })
+    # 選択テキスト -> チャットコンテキスト がある場合の追加指示
+    if chat_context:
+        system_prompt = system_prompt_base + f"""\n\n重要: ユーザーは以下のテキストを現在の会話の最重要コンテキストとして指定しました。ユーザーの指示が曖昧な場合（例：「これについて教えて」）、直前の会話履歴よりもまず、この追加コンテキストについて言及・回答することを最優先してください。
+--- 追加コンテキストここから ---
+{chat_context}
+--- 追加コンテキストここまで ---
+"""
+    else:
+        system_prompt = system_prompt_base
     
+    # Claude API v2 (messages) では system パラメータを使用
+    # messagesリストにはシステムプロンプトを含めない
+
     # すべての会話履歴を追加
     for msg in chat_history:  # すべてのメッセージを使用（制限なし）
         messages.append({
@@ -169,24 +217,37 @@ def get_claude_response(model_name, context, chat_history, user_message, thinkin
     response = anthropic_client.messages.create(
         model=model_name,
         messages=messages,
-        system=system_prompt,
+        system=system_prompt, # systemパラメータにプロンプトを渡す
+        # thinking_enabled はClaudeのAPIには直接対応するパラメータがないため、
+        # プロンプト内で指示するか、フロントエンド側で制御する
     )
     
     return response.content[0].text
 
-def get_openai_response(model_name, context, chat_history, user_message):
+def get_openai_response(model_name, context, chat_history, user_message, chat_context):
     """OpenAI GPTモデルを使用して応答を生成"""
-    # チャット履歴の作成
     messages = []
     
-    # システムプロンプトを追加
-    system_prompt = f"""あなたはユーザーのアシスタントとして、ユーザーがチャットで入力した内容に応じて適切な内容を出力します。
+    # システムプロンプトの組み立て
+    system_prompt_base = f"""あなたはユーザーのアシスタントとして、ユーザーがチャットで入力した内容に応じて適切な内容を出力します。
 
 このチャットでは、あなたとユーザーの過去の会話履歴が自動的に提供されます。過去の会話のコンテキストを考慮して返答してください。ユーザーが過去の会話内容に言及した場合は、その履歴を参照して適切に応答してください。
 
 また、以下のドキュメントはユーザーが現在作成している内容で、この内容についての会話がこのチャットでは実施されます。
+--- ドキュメントここから ---
 {context}
+--- ドキュメントここまで ---
 """
+    
+    # 選択テキスト -> チャットコンテキスト がある場合の追加指示
+    if chat_context:
+        system_prompt = system_prompt_base + f"""\n\n重要: ユーザーは以下のテキストを現在の会話の最重要コンテキストとして指定しました。ユーザーの指示が曖昧な場合（例：「これについて教えて」）、直前の会話履歴よりもまず、この追加コンテキストについて言及・回答することを最優先してください。
+--- 追加コンテキストここから ---
+{chat_context}
+--- 追加コンテキストここまで ---
+"""
+    else:
+        system_prompt = system_prompt_base
     
     messages.append({
         "role": "system",

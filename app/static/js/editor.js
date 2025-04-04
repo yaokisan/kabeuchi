@@ -73,12 +73,59 @@ function initEditor() {
     // Quillエディタの初期化
     editor = new Quill('#editor-container', {
         modules: {
-            toolbar: toolbarOptions
+            toolbar: toolbarOptions,
+            clipboard: { /* 前回の clipboard 設定は一旦削除 or コメントアウト */ }
         },
         placeholder: 'ここに内容を入力してください...',
         theme: 'snow'
     });
     
+    // --- ここから「AIチャットに追加」ボタンの動的生成 --- 
+    let addToChatBtn = null; // ボタン要素の参照を保持する変数
+    try {
+        addToChatBtn = document.createElement('button');
+        addToChatBtn.id = 'add-to-chat-btn';
+        addToChatBtn.textContent = 'AIチャットに追加';
+        addToChatBtn.className = 'secondary-btn'; // 既存のCSSクラスを適用
+        // 初期スタイル (非表示、右上配置)
+        addToChatBtn.style.display = 'none';
+        addToChatBtn.style.position = 'absolute'; // エディタコンテナ基準
+        addToChatBtn.style.top = '5px'; 
+        addToChatBtn.style.right = '5px';
+        addToChatBtn.style.zIndex = '10'; 
+        addToChatBtn.style.padding = '3px 8px'; // 少し小さく
+        addToChatBtn.style.fontSize = '11px'; // 少し小さく
+
+        // クリックイベントリスナーを設定 (ボタン生成直後に設定)
+        addToChatBtn.addEventListener('click', function() {
+            const selection = editor.getSelection();
+            if (selection && selection.length > 0) {
+                const selectedText = editor.getText(selection.index, selection.length);
+                console.log("追加するテキスト:", selectedText);
+                if (typeof window.chatAPI !== 'undefined' && typeof window.chatAPI.setContext === 'function') {
+                    window.chatAPI.setContext(selectedText);
+                    this.style.display = 'none'; // ボタンを非表示
+                    editor.setSelection(null); // 選択解除
+                } else {
+                    console.error('window.chatAPI または window.chatAPI.setContext 関数が見つかりません。');
+                    alert('チャット機能との連携中にエラーが発生しました。');
+                }
+            }
+        });
+
+        // 作成したボタンをエディタコンテナに追加
+        if (editor.container) {
+             editor.container.appendChild(addToChatBtn);
+             console.log("動的に生成したボタンをエディタコンテナに追加しました。");
+        } else {
+             console.error("editor.container が見つからず、ボタンを追加できませんでした。");
+        }
+
+    } catch (e) {
+        console.error("ボタンの動的生成または追加中にエラー:", e);
+    }
+    // --- ボタンの動的生成 ここまで ---
+
     // エディタの変更を検知して自動保存
     editor.on('text-change', function() {
         updateSaveStatus('保存中...');
@@ -97,6 +144,35 @@ function initEditor() {
             }
         }, AUTO_SAVE_DELAY);
     });
+    
+    // イベントリスナー設定を少し遅延させる
+    setTimeout(() => {
+        console.log("遅延後にリスナー設定を開始します。");
+
+        // 選択範囲の変更を検知して「AIチャットに追加」ボタンの表示/非表示
+        editor.on('selection-change', function(range, oldRange, source) {
+            console.log("selection-change 発火: ", { range: range, source: source });
+            
+            // 動的に生成されたボタン要素の参照を使用 (addToChatBtn 変数)
+            if (addToChatBtn) { // ボタン要素の参照が存在するか確認
+                if (range && range.length > 0) {
+                    console.log("テキスト選択検知、ボタン表示試行");
+                    // ボタンは右上固定なので位置計算は不要
+                    addToChatBtn.style.display = 'block'; 
+                } else {
+                    console.log("選択解除または空、ボタン非表示");
+                    addToChatBtn.style.display = 'none';
+                }
+            } else {
+                 console.warn("動的に生成されたボタンの参照が見つかりません (selection-change)");
+            }
+        });
+        
+        // 「AIチャットに追加」ボタンのクリックイベントリスナーは既に上で設定済み
+        // const buttonElementForListener = editor.container.querySelector('#add-to-chat-btn'); // 不要
+        // if (buttonElementForListener) { ... } // 不要
+
+    }, 100); // 100ミリ秒後に実行
 }
 
 /**
