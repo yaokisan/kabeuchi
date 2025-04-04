@@ -36,13 +36,13 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 # データベーステーブルの作成
-try:
-    with app.app_context():
-        app.logger.info("init_db() を呼び出します...")
-        init_db()
-        app.logger.info("init_db() が正常に完了しました。")
-except Exception as e:
-    app.logger.error(f"init_db() でエラーが発生しました: {e}", exc_info=True)
+# try:
+#     with app.app_context():
+#         app.logger.info("init_db() を呼び出します...")
+#         init_db()
+#         app.logger.info("init_db() が正常に完了しました。")
+# except Exception as e:
+#     app.logger.error(f"init_db() でエラーが発生しました: {e}", exc_info=True)
 
 # SocketIOの初期化 - engineioのロギングを有効に
 socketio = SocketIO(app, 
