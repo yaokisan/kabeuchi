@@ -1,11 +1,11 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for
-from flask_socketio import SocketIO
+# from flask_socketio import SocketIO # コメントアウト
 from dotenv import load_dotenv
 import os
 from app.models.database import db, init_db
 from app.controllers.document_controller import document_bp
 from app.controllers.chat_controller import chat_bp
-from app.controllers.speech_controller import speech_bp, handle_speech_recognition
+from app.controllers.speech_controller import speech_bp # handle_speech_recognition を削除
 from app.controllers.settings_controller import settings_bp
 import logging
 import sys # logging用に追
@@ -45,18 +45,18 @@ db.init_app(app)
 #     app.logger.error(f"init_db() でエラーが発生しました: {e}", exc_info=True)
 
 # SocketIOの初期化 - engineioのロギングを有効に
-socketio = SocketIO(app, 
-                   cors_allowed_origins="*", 
-                   logger=True, 
-                   engineio_logger=True,
-                   ping_timeout=60,
-                   ping_interval=25)
-
-app.logger.info("SocketIOを初期化しました")
+# socketio = SocketIO(app, 
+#                    cors_allowed_origins="*", 
+#                    logger=True, 
+#                    engineio_logger=True,
+#                    ping_timeout=60,
+#                    ping_interval=25)
+# 
+# app.logger.info("SocketIOを初期化しました")
 
 # 音声認識ハンドラの接続
-handle_speech_recognition(socketio)
-app.logger.info("音声認識ハンドラを登録しました")
+# handle_speech_recognition(socketio)
+# app.logger.info("音声認識ハンドラを登録しました")
 
 # 各種ブループリントの登録
 app.register_blueprint(document_bp)
@@ -95,4 +95,5 @@ def settings():
 if __name__ == '__main__':
     # デバッグモードでサーバー起動
     app.logger.info("アプリケーションを起動します...")
-    socketio.run(app, debug=True) 
+    # socketio.run(app, debug=True)
+    app.run(debug=True) # 通常のFlask開発サーバー起動に変更 
