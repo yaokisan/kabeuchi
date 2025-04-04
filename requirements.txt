@@ -8,7 +8,9 @@ google-generativeai==0.3.1
 anthropic==0.5.0
 librosa==0.10.0
 pydub==0.25.1
-eventlet==0.33.3
+# eventlet==0.33.3  # eventletを削除またはコメントアウト
 gunicorn==20.1.0
 python-engineio==4.3.4
 python-socketio==5.7.2
+gevent             # geventを追加
+gevent-websocket   # gevent-websocketを追加
