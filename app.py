@@ -62,6 +62,9 @@ def settings():
     """設定ページを表示"""
     return render_template('settings.html')
 
+# Gunicornでの実行のためにapplicationをapp変数として公開
+application = app
+
 if __name__ == '__main__':
     # デバッグモードでサーバー起動
     print("アプリケーションを起動します...")

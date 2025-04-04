@@ -130,3 +130,18 @@ KabeUchiは、個人の思考深化とアイデア整理を支援するWebアプ
 ## ライセンス
 
 このプロジェクトは [MIT License](LICENSE) の下で提供されています。
+
+## Renderでのデプロイについて
+
+Renderでデプロイする際は、以下の点に注意してください：
+
+1. `gunicorn`コマンドでは、`app:app`の形式で指定する必要があります。
+2. `app.py`内にFlaskアプリケーションのインスタンスを`app`変数としてエクスポートする必要があります。
+
+### トラブルシューティング
+
+- `Failed to find attribute 'app' in 'app'`というエラーが発生した場合は、`app.py`内で`app`インスタンスがエクスポートされていることを確認してください。
+- WebSocketを使用する場合は、Gunicornのワーカークラスとして`geventwebsocket.gunicorn.workers.GeventWebSocketWorker`を指定し、ワーカー数を1に設定する必要があります：
+  ```
+  gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 app:app
+  ```
