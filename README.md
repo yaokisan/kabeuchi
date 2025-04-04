@@ -135,13 +135,19 @@ KabeUchiは、個人の思考深化とアイデア整理を支援するWebアプ
 
 Renderでデプロイする際は、以下の点に注意してください：
 
-1. `gunicorn`コマンドでは、`app:app`の形式で指定する必要があります。
-2. `app.py`内にFlaskアプリケーションのインスタンスを`app`変数としてエクスポートする必要があります。
+1. `gunicorn`コマンドで、`app:app`の形式で指定する場合：
+   - モジュール名とアプリケーションインスタンス名を正しく一致させる必要があります
+   - `app/__init__.py`にFlaskアプリケーションのインスタンスを`app`変数として定義しています
+
+2. WebSocketを使用するアプリケーションの場合：
+   - Gunicornのワーカークラスとして`geventwebsocket.gunicorn.workers.GeventWebSocketWorker`を指定
+   - ワーカー数を1に設定する（WebSocketの場合は必須）
+   ```
+   gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 app:app
+   ```
 
 ### トラブルシューティング
 
-- `Failed to find attribute 'app' in 'app'`というエラーが発生した場合は、`app.py`内で`app`インスタンスがエクスポートされていることを確認してください。
-- WebSocketを使用する場合は、Gunicornのワーカークラスとして`geventwebsocket.gunicorn.workers.GeventWebSocketWorker`を指定し、ワーカー数を1に設定する必要があります：
-  ```
-  gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 app:app
-  ```
+- `Failed to find attribute 'app' in 'app'`というエラーが発生した場合：
+  - `app/__init__.py`内で`app`変数が正しく定義されていることを確認
+  - または、Flaskアプリケーションインスタンスが定義されているモジュールとインスタンス名に合わせて起動コマンドを変更
