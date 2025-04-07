@@ -111,6 +111,7 @@ function sendChatMessage() {
     
     // ★ 変更点: selected_text の代わりに currentChatContext を使う
     const contextToSend = currentChatContext; // 送信するコンテキストを保持
+    const enableSearch = document.getElementById('enable-search-checkbox').checked; // ★ 検索チェックボックスの状態を取得
     
     fetch(`/api/chat/send/${documentId}`, {
         method: 'POST',
@@ -121,8 +122,8 @@ function sendChatMessage() {
             message: message,
             model: currentChatModel,
             thinking_enabled: thinkingEnabled,
-            // selected_text: selectedText // ← 削除
-            chat_context: contextToSend // 新しく chat_context を追加
+            chat_context: contextToSend,
+            enable_search: enableSearch // ★ 検索有効フラグを追加
         })
     })
     .then(response => {
@@ -135,9 +136,12 @@ function sendChatMessage() {
         if (loadingElement && loadingElement.parentNode) {
             loadingElement.parentNode.removeChild(loadingElement);
         }
-        addMessageToChat('assistant', data.message);
+        if (data.success) {
+            addMessageToChat('assistant', data.message, data.sources);
+        } else {
+            addMessageToChat('assistant', data.message || 'エラーが発生しました。');
+        }
         scrollChatToBottom();
-        // ★ 送信成功後にコンテキストをクリア
         clearContext(); 
     })
     .catch(error => {
@@ -147,7 +151,6 @@ function sendChatMessage() {
         }
         addMessageToChat('assistant', 'エラーが発生しました。しばらく経ってからもう一度お試しください。');
         scrollChatToBottom();
-        // エラー時もコンテキストをクリアするかどうかは要件次第ですが、一旦クリアします
         clearContext();
     });
 }
@@ -184,13 +187,18 @@ function loadChatHistory(documentId) {
  * メッセージをチャットUIに追加
  * @param {string} role - メッセージの送信者のロール ('user' または 'assistant')
  * @param {string} content - メッセージの内容
+ * @param {Array<object>} [sources=[]] - (アシスタントの場合) 参照した情報源のリスト
  */
-function addMessageToChat(role, content) {
+function addMessageToChat(role, content, sources = []) {
     const chatMessages = document.getElementById('chat-messages');
     
     const messageElement = document.createElement('div');
     messageElement.className = `chat-message ${role}-message`;
     
+    // メッセージ本文のコンテナ
+    const contentElement = document.createElement('div');
+    contentElement.className = 'message-content';
+
     if (role === 'assistant') {
         try {
             console.log('AIメッセージをマークダウンレンダリングします', content.substring(0, 50) + '...');
@@ -207,10 +215,10 @@ function addMessageToChat(role, content) {
                 };
 
                 // マークダウンをHTMLに変換
-                messageElement.innerHTML = marked.parse(content, markedOptions);
+                contentElement.innerHTML = marked.parse(content, markedOptions);
                 
                 // リンクを新しいタブで開くように設定
-                const links = messageElement.querySelectorAll('a');
+                const links = contentElement.querySelectorAll('a');
                 links.forEach(link => {
                     link.setAttribute('target', '_blank');
                     link.setAttribute('rel', 'noopener noreferrer');
@@ -219,23 +227,48 @@ function addMessageToChat(role, content) {
                 // marked.jsが読み込まれていない場合は通常のテキスト表示
                 console.warn('marked.js is not loaded, displaying plain text');
                 const escapedContent = escapeHtml(content).replace(/\n/g, '<br>');
-                messageElement.innerHTML = escapedContent;
+                contentElement.innerHTML = escapedContent;
             }
         } catch (error) {
             // エラーが発生した場合はプレーンテキストにフォールバック
             console.error('Markdown rendering failed:', error);
             const escapedContent = escapeHtml(content).replace(/\n/g, '<br>');
-            messageElement.innerHTML = escapedContent;
+            contentElement.innerHTML = escapedContent;
         }
     } else {
         // ユーザーのメッセージはHTMLエスケープして改行を<br>に変換
         const escapedContent = escapeHtml(content).replace(/\n/g, '<br>');
-        messageElement.innerHTML = escapedContent;
+        contentElement.innerHTML = escapedContent;
+    }
+    
+    messageElement.appendChild(contentElement);
+
+    // ★ アシスタントメッセージで、かつ情報源がある場合にリストを表示
+    if (role === 'assistant' && sources && sources.length > 0) {
+        const sourcesList = document.createElement('ul');
+        sourcesList.className = 'message-sources';
+        sourcesList.innerHTML = '<li class="sources-title">参照元:</li>'; // タイトル
+
+        sources.forEach(source => {
+            const sourceItem = document.createElement('li');
+            const link = document.createElement('a');
+            link.href = source.url;
+            link.target = '_blank'; // 新しいタブで開く
+            link.rel = 'noopener noreferrer';
+            link.textContent = source.title || 'タイトル不明'; // タイトル表示
+            
+            const domainSpan = document.createElement('span');
+            domainSpan.className = 'source-domain';
+            domainSpan.textContent = ` (${source.domain || 'ドメイン不明'})`; // ドメイン表示
+
+            sourceItem.appendChild(link);
+            sourceItem.appendChild(domainSpan);
+            sourcesList.appendChild(sourceItem);
+        });
+        messageElement.appendChild(sourcesList);
     }
     
     chatMessages.appendChild(messageElement);
-    
-    // チャットエリアを最下部にスクロール
     scrollChatToBottom();
 }
 
