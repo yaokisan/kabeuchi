@@ -7,6 +7,7 @@ let editor;
 let currentDocumentId = null;
 let saveTimeout = null;
 const AUTO_SAVE_DELAY = 2000; // 自動保存の遅延時間（ミリ秒）
+const EDITOR_FONT_SIZE_KEY = 'editorFontSizePreference'; // LocalStorageキー
 
 // DOMが読み込まれた後に実行
 document.addEventListener('DOMContentLoaded', function() {
@@ -16,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // エディタ初期化
         initEditor();
         setupDocumentEvents();
+        setupFontSizeSelector(); // ★ フォントサイズセレクタ設定を追加
         
         // 最近のドキュメント一覧を読み込む
         loadRecentDocuments();
@@ -79,6 +81,9 @@ function initEditor() {
         placeholder: 'ここに内容を入力してください...',
         theme: 'snow'
     });
+    
+    // ★ 初期フォントサイズを適用
+    applyEditorFontSize(getSavedFontSize()); 
     
     // --- ここから「AIチャットに追加」ボタンの動的生成 --- 
     let addToChatBtn = null; // ボタン要素の参照を保持する変数
@@ -572,6 +577,57 @@ function loadLatestDocumentOrShowEmpty() {
                 sessionStorage.setItem('emptyDocumentCreated', 'true');
             }
         });
+}
+
+// ★ 新しい関数: フォントサイズセレクタのイベント設定
+function setupFontSizeSelector() {
+    const fontSizeSelect = document.getElementById('editor-font-size');
+    if (!fontSizeSelect) return;
+
+    // 保存された設定をドロップダウンに反映
+    fontSizeSelect.value = getSavedFontSize();
+
+    fontSizeSelect.addEventListener('change', function() {
+        const newSize = this.value; // "100", "75", "50"
+        applyEditorFontSize(newSize);
+        saveFontSizePreference(newSize);
+    });
+}
+
+// ★ 新しい関数: 保存されたフォントサイズ設定を取得
+function getSavedFontSize() {
+    return localStorage.getItem(EDITOR_FONT_SIZE_KEY) || '100'; // デフォルトは100%
+}
+
+// ★ 新しい関数: フォントサイズ設定をローカルストレージに保存
+function saveFontSizePreference(size) {
+    localStorage.setItem(EDITOR_FONT_SIZE_KEY, size);
+}
+
+// ★ 新しい関数: エディタにフォントサイズクラスを適用
+function applyEditorFontSize(size) {
+    const editorElement = editor.container.querySelector('.ql-editor');
+    if (!editorElement) return;
+
+    // ★ 管理する可能性のあるクラス名のリスト
+    const sizeClasses = [
+        'font-size-50', 'font-size-60', 'font-size-70', 'font-size-75', // 75も念のため残す
+        'font-size-80', 'font-size-90', 'font-size-110', 'font-size-120',
+        'font-size-130', 'font-size-140', 'font-size-150'
+    ];
+
+    // 既存のサイズクラスをすべて削除
+    editorElement.classList.remove(...sizeClasses);
+
+    // 新しいサイズに対応するクラス名を作成 (例: "font-size-80")
+    const newClass = `font-size-${size}`;
+
+    // 100% 以外の場合、かつリストに含まれるクラスの場合にクラスを追加
+    if (size !== '100' && sizeClasses.includes(newClass)) {
+        editorElement.classList.add(newClass);
+    }
+    // size === '100' の場合はクラス不要
+    console.log(`エディタのフォントサイズを ${size}% に変更`);
 }
 
 // 他のJSファイルから使用できるようにグローバルに公開

@@ -6,6 +6,8 @@
 let currentChatModel = localStorage.getItem('lastSelectedAIModel') || 'gemini-2.0-flash'; // デフォルト値を設定し、ローカルストレージから取得
 let thinkingEnabled = false;
 let currentChatContext = null; // 追加されたコンテキストテキストを保持する変数
+let attachedImageBase64 = null; // ★ 添付画像のBase64データを保持
+let attachedImageMimeType = null; // ★ 添付画像のMIMEタイプを保持
 
 // DOMが読み込まれた後に実行
 document.addEventListener('DOMContentLoaded', function() {
@@ -29,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     setupChatInputAutoResize(); // ★ 新しい関数呼び出しを追加
     updateSearchToggleVisibility(); // ★ 初期表示時のチェックボックス表示更新を追加
+    setupImageAttachment(); // ★ 画像添付関連のイベント設定を追加
 });
 
 /**
@@ -94,8 +97,8 @@ function sendChatMessage() {
     const chatInput = document.getElementById('chat-input');
     const message = chatInput.value.trim();
     
-    // メッセージが空でもコンテキストがあれば送信を許可（コンテキストに関する質問など）
-    if (!message && !currentChatContext) return;
+    // ★ メッセージも画像もない場合は送信しない
+    if (!message && !attachedImageBase64) return;
     
     const documentId = window.editorAPI.getCurrentDocumentId();
     if (!documentId) {
@@ -103,14 +106,23 @@ function sendChatMessage() {
         return;
     }
     
+    // ★ 送信するデータを保持（送信後にリセットするため）
+    const messageToSend = message;
+    const imageBase64ToSend = attachedImageBase64;
+    const imageMimeTypeToSend = attachedImageMimeType;
+    
+    // UIをリセット
     chatInput.value = '';
-    addMessageToChat('user', message);
+    removeAttachedImage(); // 添付画像を削除してプレビューを消す
+    
+    // ★ ユーザーメッセージ（テキストのみ、または画像のみの場合もある）をUIに追加
+    addMessageToChat('user', messageToSend, [], imageBase64ToSend); // 画像プレビューをユーザーメッセージに追加
+    
     const loadingElement = createLoadingIndicator();
     document.getElementById('chat-messages').appendChild(loadingElement);
     
-    // ★ 変更点: selected_text の代わりに currentChatContext を使う
-    const contextToSend = currentChatContext; // 送信するコンテキストを保持
-    const enableSearch = document.getElementById('enable-search-checkbox').checked; // ★ 検索チェックボックスの状態を取得
+    const contextToSend = currentChatContext;
+    const enableSearch = document.getElementById('enable-search-checkbox').checked;
     
     fetch(`/api/chat/send/${documentId}`, {
         method: 'POST',
@@ -118,11 +130,13 @@ function sendChatMessage() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            message: message,
+            message: messageToSend,
             model: currentChatModel,
             thinking_enabled: thinkingEnabled,
             chat_context: contextToSend,
-            enable_search: enableSearch // ★ 検索有効フラグを追加
+            enable_search: enableSearch,
+            image_data: imageBase64ToSend, // ★ 画像データ (Base64)
+            image_mime_type: imageMimeTypeToSend // ★ 画像MIMEタイプ
         })
     })
     .then(response => {
@@ -187,61 +201,79 @@ function loadChatHistory(documentId) {
  * @param {string} role - メッセージの送信者のロール ('user' または 'assistant')
  * @param {string} content - メッセージの内容
  * @param {Array<object>} [sources=[]] - (アシスタントの場合) 参照した情報源のリスト
+ * @param {string|null} [imageBase64=null] - (ユーザーメッセージの場合) 添付画像のBase64データ
  */
-function addMessageToChat(role, content, sources = []) {
+function addMessageToChat(role, content, sources = [], imageBase64 = null) {
     const chatMessages = document.getElementById('chat-messages');
     
     const messageElement = document.createElement('div');
     messageElement.className = `chat-message ${role}-message`;
     
-    // メッセージ本文のコンテナ
-    const contentElement = document.createElement('div');
-    contentElement.className = 'message-content';
+    // ★ ユーザーメッセージで画像がある場合、プレビューを追加
+    if (role === 'user' && imageBase64) {
+        const userImagePreview = document.createElement('img');
+        userImagePreview.src = imageBase64;
+        userImagePreview.alt = "添付画像";
+        userImagePreview.style.maxWidth = '50%'; // UI内で大きすぎないように
+        userImagePreview.style.maxHeight = '150px';
+        userImagePreview.style.borderRadius = '4px';
+        userImagePreview.style.marginBottom = content ? '8px' : '0'; // テキストがあれば下にマージン
+        userImagePreview.style.display = 'block';
+        messageElement.appendChild(userImagePreview);
+    }
 
-    if (role === 'assistant') {
-        try {
-            console.log('AIメッセージをマークダウンレンダリングします', content.substring(0, 50) + '...');
-            
-            // アシスタントのメッセージはMarkdownとしてレンダリング
-            if (typeof marked !== 'undefined') {
-                // markedオプション
-                const markedOptions = {
-                    breaks: true,       // 改行を<br>に変換
-                    gfm: true,          // GitHub Flavored Markdown
-                    headerIds: false,   // ヘッダーIDの自動生成を無効化
-                    mangle: false,      // リンクの難読化を無効化
-                    sanitize: false     // HTMLサニタイズを無効化（古いバージョンのmarkedで必要）
-                };
+    // メッセージ本文のコンテナ（テキストがある場合のみ追加）
+    if (content) {
+        const contentElement = document.createElement('div');
+        contentElement.className = 'message-content';
 
-                // マークダウンをHTMLに変換
-                contentElement.innerHTML = marked.parse(content, markedOptions);
+        if (role === 'assistant') {
+            try {
+                console.log('AIメッセージをマークダウンレンダリングします', content.substring(0, 50) + '...');
                 
-                // リンクを新しいタブで開くように設定
-                const links = contentElement.querySelectorAll('a');
-                links.forEach(link => {
-                    link.setAttribute('target', '_blank');
-                    link.setAttribute('rel', 'noopener noreferrer');
-                });
-            } else {
-                // marked.jsが読み込まれていない場合は通常のテキスト表示
-                console.warn('marked.js is not loaded, displaying plain text');
+                // アシスタントのメッセージはMarkdownとしてレンダリング
+                if (typeof marked !== 'undefined') {
+                    // markedオプション
+                    const markedOptions = {
+                        breaks: true,       // 改行を<br>に変換
+                        gfm: true,          // GitHub Flavored Markdown
+                        headerIds: false,   // ヘッダーIDの自動生成を無効化
+                        mangle: false,      // リンクの難読化を無効化
+                        sanitize: false     // HTMLサニタイズを無効化（古いバージョンのmarkedで必要）
+                    };
+
+                    // マークダウンをHTMLに変換
+                    contentElement.innerHTML = marked.parse(content, markedOptions);
+                    
+                    // リンクを新しいタブで開くように設定
+                    const links = contentElement.querySelectorAll('a');
+                    links.forEach(link => {
+                        link.setAttribute('target', '_blank');
+                        link.setAttribute('rel', 'noopener noreferrer');
+                    });
+                } else {
+                    // marked.jsが読み込まれていない場合は通常のテキスト表示
+                    console.warn('marked.js is not loaded, displaying plain text');
+                    const escapedContent = escapeHtml(content).replace(/\n/g, '<br>');
+                    contentElement.innerHTML = escapedContent;
+                }
+            } catch (error) {
+                // エラーが発生した場合はプレーンテキストにフォールバック
+                console.error('Markdown rendering failed:', error);
                 const escapedContent = escapeHtml(content).replace(/\n/g, '<br>');
                 contentElement.innerHTML = escapedContent;
             }
-        } catch (error) {
-            // エラーが発生した場合はプレーンテキストにフォールバック
-            console.error('Markdown rendering failed:', error);
+        } else {
+            // ユーザーのメッセージはHTMLエスケープして改行を<br>に変換
             const escapedContent = escapeHtml(content).replace(/\n/g, '<br>');
             contentElement.innerHTML = escapedContent;
         }
-    } else {
-        // ユーザーのメッセージはHTMLエスケープして改行を<br>に変換
-        const escapedContent = escapeHtml(content).replace(/\n/g, '<br>');
-        contentElement.innerHTML = escapedContent;
+        messageElement.appendChild(contentElement);
+    } else if (role === 'user' && !imageBase64) {
+        // テキストも画像もない場合は何も表示しない（または「空のメッセージ」などを表示）
+        return; // 何も追加しない
     }
     
-    messageElement.appendChild(contentElement);
-
     // ★ アシスタントメッセージで、かつ情報源がある場合にリストを表示
     if (role === 'assistant' && sources && sources.length > 0) {
         const sourcesList = document.createElement('ul');
@@ -442,12 +474,15 @@ function sendMessage() {
 
 // イベントリスナー
 sendChatBtn.addEventListener('click', sendMessage);
+
+/* ★ ShiftなしEnterでの送信機能を無効化
 chatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
     }
 });
+*/
 
 // 初期化関数の呼び出し
 if (document.readyState === 'loading') {
@@ -484,4 +519,67 @@ function updateSearchToggleVisibility() {
         const isGeminiSelected = currentChatModel.startsWith('gemini');
         searchToggleContainer.style.display = isGeminiSelected ? 'flex' : 'none';
     }
+}
+
+// ★ 新しい関数: 画像添付関連のイベントを設定
+function setupImageAttachment() {
+    const attachBtn = document.getElementById('attach-image-btn');
+    const imageInput = document.getElementById('chat-image-input');
+    const previewContainer = document.getElementById('image-preview-container');
+    const previewImage = document.getElementById('image-preview');
+    const removeBtn = document.getElementById('remove-image-btn');
+
+    if (!attachBtn || !imageInput || !previewContainer || !previewImage || !removeBtn) return;
+
+    // 添付ボタンクリックでファイル入力をトリガー
+    attachBtn.addEventListener('click', () => {
+        imageInput.click();
+    });
+
+    // ファイルが選択されたときの処理
+    imageInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        const MAX_FILE_SIZE_MB = 5;
+        const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+        if (file && file.type.startsWith('image/')) {
+            // ★ ファイルサイズチェック
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                alert(`画像ファイルサイズは ${MAX_FILE_SIZE_MB}MB を超えられません。`);
+                removeAttachedImage(); // 添付をリセット
+                imageInput.value = null; // ファイル選択もリセット
+                return; // 処理中断
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                attachedImageBase64 = reader.result;
+                attachedImageMimeType = file.type;
+                previewImage.src = attachedImageBase64;
+                previewContainer.style.display = 'block';
+            }
+            reader.readAsDataURL(file);
+        } else {
+            // 画像以外、または選択キャンセル
+            removeAttachedImage();
+        }
+        // 同じファイルを連続で選択できるように value をリセット
+        imageInput.value = null;
+    });
+
+    // 画像削除ボタンの処理
+    removeBtn.addEventListener('click', removeAttachedImage);
+}
+
+// ★ 新しい関数: 添付画像を削除し、プレビューを非表示にする
+function removeAttachedImage() {
+    attachedImageBase64 = null;
+    attachedImageMimeType = null;
+    const previewContainer = document.getElementById('image-preview-container');
+    const previewImage = document.getElementById('image-preview');
+    const imageInput = document.getElementById('chat-image-input');
+    if (previewContainer) previewContainer.style.display = 'none';
+    if (previewImage) previewImage.src = '#';
+    if (imageInput) imageInput.value = null; // 念のためファイル選択もリセット
+    console.log('添付画像を削除しました');
 } 
