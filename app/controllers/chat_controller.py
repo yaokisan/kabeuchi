@@ -11,6 +11,8 @@ from anthropic import Anthropic
 from duckduckgo_search import DDGS # ★ duckduckgo-search をインポート
 from google.generativeai.types import GenerationConfig, FunctionDeclaration, Tool
 from urllib.parse import urlparse # URLパース用に追記
+from io import BytesIO # Base64デコード用
+import base64
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
 
@@ -88,29 +90,36 @@ def send_message(doc_id):
     thinking_enabled = data.get('thinking_enabled', False)
     chat_context = data.get('chat_context')
     enable_search = data.get('enable_search', False)
-    
-    # ユーザーメッセージをデータベースに保存
+    image_data_base64 = data.get('image_data') 
+    image_mime_type = data.get('image_mime_type')
+
+    # 画像データからヘッダー除去 (再確認)
+    if image_data_base64 and ',' in image_data_base64:
+        image_data_base64 = image_data_base64.split(',', 1)[1]
+
+    # ユーザーメッセージ保存 (画像情報は保存しない)
     user_chat = ChatMessage(
         document_id=doc_id,
         role='user',
         content=user_message,
         model_used=model_name,
-        thinking_enabled=thinking_enabled
+        thinking_enabled=thinking_enabled,
     )
     db.session.add(user_chat)
 
-    # ドキュメント内容とチャット履歴を取得
+    # チャット履歴を取得 (画像情報は含まれない)
     chat_history = ChatMessage.query.filter_by(document_id=doc_id).order_by(ChatMessage.timestamp).all()
     context = document.content
-    
-    ai_response_data = {} # ★ AI応答データ（メッセージ＋情報源）を格納
 
+    ai_response_data = {}
     try:
         if model_name.startswith('gemini'):
             if not GOOGLE_API_KEY:
                 raise ValueError("Google API Keyが設定されていません。")
-            # ★ get_gemini_response は辞書を返すようになった
-            ai_response_data = get_gemini_response(model_name, context, chat_history, user_message, chat_context, enable_search)
+            ai_response_data = get_gemini_response(
+                model_name, context, chat_history, user_message, chat_context, enable_search,
+                image_data_base64, image_mime_type
+            )
         elif model_name.startswith('claude'):
             if not ANTHROPIC_API_KEY:
                 raise ValueError("Anthropic API Keyが設定されていません。")
@@ -203,30 +212,42 @@ def execute_web_search(search_query: str) -> dict: # ★ 返り値を dict に�
     # ★ 結果テキストと情報源リストを辞書で返す
     return {"result_text": search_results_text, "sources": sources}
 
-def get_gemini_response(model_name, context, chat_history, user_message, chat_context, enable_search):
-    """Google Geminiモデルを使用して応答を生成 (Function CallingによるWeb検索対応)"""
+def get_gemini_response(model_name, context, chat_history, user_message, chat_context, enable_search,
+                        image_data_base64=None, image_mime_type=None): 
+    """Google Geminiモデルを使用して応答を生成 (Function Calling & 今回の画像入力対応)"""
 
     if not GOOGLE_API_KEY:
         raise ValueError("Google API Keyが設定されていません。")
 
+    # ★ 画像入力がある場合、マルチモーダル対応モデルか確認/促す
+    #    例: gemini-1.5-flash-latest などを使う
+    if image_data_base64:
+        # マルチモーダル非対応モデルが選択されていた場合の警告/変更（必要に応じて）
+        if not ('flash' in model_name or 'pro' in model_name): # 簡単なチェック
+             print(f"警告: 画像入力は Gemini Flash/Pro モデルでのみサポートされます。現在のモデル: {model_name}")
+             # ここでエラーを返すか、モデル名を強制変更するかの選択肢あり
+             # return {"message": f"エラー: 画像入力は Gemini Flash/Pro モデルを選択してください。", "sources": []}
+             # model_name = 'gemini-1.5-flash-latest' # 強制変更例
+
+        # マルチモーダル対応モデルでも古いバージョンの可能性もあるため注意喚起
+        if not ('1.5' in model_name or 'latest' in model_name):
+             print(f"情報: より新しいモデル(gemini-1.5-flash-latestなど)の方が画像認識性能が高い可能性があります。現在のモデル: {model_name}")
+
     generation_config = GenerationConfig()
     model_kwargs = {"generation_config": generation_config}
-    tool_config = None # ★ tool_config を初期化
-
+    tool_config = None
     if enable_search:
         print("--- Web検索ツールを有効にしてGeminiを初期化 ---")
         model_kwargs["tools"] = [search_tool]
-        # ★ 検索有効時は mode='ANY' を設定してツール使用を強制
         tool_config = {"function_calling_config": {"mode": "ANY"}}
         print(f"--- Tool config mode set to: {tool_config['function_calling_config']['mode']} ---")
 
     model = genai.GenerativeModel(model_name, **model_kwargs)
 
-    # チャット履歴の作成
+    # チャット履歴の作成 (★ 過去の画像は考慮しない)
     gemini_history = []
-    # ★ シンプルなシステム指示に戻す
     system_instruction_content = f"""あなたは親切で知識豊富なアシスタントです。
-ユーザーの質問に答えるために、提供された情報（ドキュメント内容、チャット履歴、必要に応じてWeb検索ツール）を活用してください。
+ユーザーの質問に答えるために、提供された情報（ドキュメント内容、チャット履歴、必要に応じてWeb検索ツール、添付画像）を活用してください。
 Web検索ツールが利用可能な場合は、最新情報や外部情報が必要だと判断した場合に使用できます。
 
 --- ドキュメント ---
@@ -242,28 +263,50 @@ Web検索ツールが利用可能な場合は、最新情報や外部情報が�
     gemini_history.append({"role": "user", "parts": [system_instruction_content]})
     gemini_history.append({"role": "model", "parts": ["承知しました。"]})
 
+    # 既存履歴を追加 (テキストのみ)
     for msg in chat_history:
         role = "model" if msg.role == 'assistant' else msg.role
         if msg.content == system_instruction_content or msg.content == "承知しました。":
             continue
-        gemini_history.append({"role": role, "parts": [msg.content]})
-    gemini_history.append({"role": "user", "parts": [user_message]})
+        # テキストのみのパーツを作成
+        msg_parts = []
+        if msg.content:
+            msg_parts.append(msg.content)
+        
+        if msg_parts:
+            gemini_history.append({"role": role, "parts": msg_parts})
+    
+    # 最新のユーザー入力（テキスト＋今回の添付画像）を履歴に追加
+    latest_user_parts = []
+    if user_message:
+        latest_user_parts.append(user_message)
+    if image_data_base64 and image_mime_type:
+        try:
+            image_bytes = base64.b64decode(image_data_base64)
+            image_part = {"mime_type": image_mime_type, "data": image_bytes}
+            latest_user_parts.append(image_part)
+            print(f"--- 今回の添付画像 ({image_mime_type}) をリクエストに追加 ---")
+        except Exception as img_e:
+            print(f"今回の添付画像処理エラー: {img_e}", file=sys.stderr)
+            latest_user_parts.append(f"(添付画像処理エラー: {img_e})")
+    if latest_user_parts:
+        gemini_history.append({"role": "user", "parts": latest_user_parts})
 
-    # --- Gemini API呼び出し ---
+    # --- Gemini API呼び出し --- 
     print(f"--- Geminiへ送信 (検索有効: {enable_search}, Tool Mode: {tool_config['function_calling_config']['mode'] if tool_config else 'AUTO'}) ---")
 
     final_response_text = ""
     sources = []
 
     try:
-        # ★ tool_config を渡してAPI呼び出し
+        # ★ Function Call後の再呼び出し時の履歴からは画像が除外される
         response = model.generate_content(
-            gemini_history,
+            gemini_history, 
             stream=False,
-            tool_config=tool_config # tool_config を指定
+            tool_config=tool_config 
         )
         print("--- Geminiからの最初の応答受信 ---")
-        
+
         # response.candidates が存在するか、空でないか確認
         if not response.candidates:
             print("--- 応答候補が存在しません --- ")
@@ -302,12 +345,16 @@ Web検索ツールが利用可能な場合は、最新情報や外部情報が�
                         "response": {"result": search_results_text_for_ai}
                     }
                 }
-                history_with_function_call = gemini_history + [
-                    candidate.content, # AIのFunctionCall要求
-                    {"role": "function", "parts": [function_response_part]} # Function Response
-                ]
-                print("--- Web検索結果をGeminiに送信 ---")
-                response = model.generate_content(history_with_function_call, stream=False)
+                # ★ Function Call後の再呼び出し履歴 (テキストのみで再構築)
+                history_for_final_call = []
+                for item in gemini_history:
+                     # 簡単な実装: role='function' 以外で、parts が文字列のみのものを抽出
+                     if item['role'] != 'function' and all(isinstance(p, str) for p in item['parts']):
+                         history_for_final_call.append(item)
+                history_for_final_call.append(candidate.content) # AIのFunctionCall要求
+                history_for_final_call.append({"role": "function", "parts": [function_response_part]}) # Function Response
+                
+                response = model.generate_content(history_for_final_call, stream=False)
                 print("--- Geminiからの最終応答受信 ---")
 
                 # 最終応答の候補とパーツを再取得、存在チェック

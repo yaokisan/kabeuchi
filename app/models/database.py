@@ -37,11 +37,11 @@ class ChatMessage(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'user' または 'assistant'
+    role = db.Column(db.String(10), nullable=False)  # 'user' or 'assistant'
     content = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    model_used = db.Column(db.String(50), nullable=True)  # 使用されたAIモデル名
-    thinking_enabled = db.Column(db.Boolean, default=False)  # 思考モードが有効だったか
+    model_used = db.Column(db.String(100))  # 使用されたAIモデル名
+    thinking_enabled = db.Column(db.Boolean, default=False)  # Claudeの思考モードなど
     
     def to_dict(self):
         """チャットメッセージをJSONシリアライズ可能な辞書に変換"""
@@ -50,7 +50,7 @@ class ChatMessage(db.Model):
             'document_id': self.document_id,
             'role': self.role,
             'content': self.content,
-            'timestamp': self.timestamp.isoformat(),
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
             'model_used': self.model_used,
-            'thinking_enabled': self.thinking_enabled
+            'thinking_enabled': self.thinking_enabled,
         } 
