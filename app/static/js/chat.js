@@ -26,6 +26,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // AIモデルの初期選択を復元
     restoreLastSelectedModel();
+    
+    setupChatInputAutoResize(); // ★ 新しい関数呼び出しを追加
 });
 
 /**
@@ -366,3 +368,67 @@ window.chatAPI = {
 // 既存の公開関数も chatAPI にまとめる方が整理されるかも
 // window.restoreLastSelectedModel = restoreLastSelectedModel;
 // window.loadChatHistory = loadChatHistory; 
+
+const chatInput = document.getElementById('chat-input');
+const sendChatBtn = document.getElementById('send-chat-btn');
+
+// チャット入力欄の自動高さ調整を設定する関数
+function setupChatInputAutoResize() {
+    if (!chatInput) return;
+
+    const adjustHeight = () => {
+        chatInput.style.height = 'auto'; // 一旦高さをリセット
+        chatInput.style.height = chatInput.scrollHeight + 'px'; // スクロール可能な高さに設定
+    };
+
+    chatInput.addEventListener('input', adjustHeight);
+    adjustHeight(); // 初期表示時にも高さを調整
+}
+
+// メッセージ送信関数
+function sendMessage() {
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    // ... (既存のメッセージ送信ロジック) ...
+
+    // 送信後に高さをリセット
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+}
+
+// イベントリスナー
+sendChatBtn.addEventListener('click', sendMessage);
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// 初期化関数の呼び出し
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChat);
+} else {
+    initChat();
+}
+
+// チャットメッセージを追加する関数 (例)
+function addMessage(sender, message) {
+    const messagesContainer = document.querySelector('.chat-messages');
+    if (!messagesContainer) return;
+
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('chat-message', sender === 'user' ? 'user-message' : 'assistant-message');
+
+    if (sender === 'assistant') {
+        // MarkdownをHTMLに変換 (marked.jsなどを使用する場合)
+        // messageElement.innerHTML = marked.parse(message);
+        messageElement.textContent = message; // 仮実装
+    } else {
+        messageElement.textContent = message;
+    }
+
+    messagesContainer.appendChild(messageElement);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+} 

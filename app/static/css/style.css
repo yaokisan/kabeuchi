@@ -375,11 +375,15 @@ input:checked + .slider:before {
 #chat-input {
     flex: 1;
     resize: none;
-    height: 60px;
+    min-height: 30px;
+    max-height: 300px;
+    height: auto;
+    overflow-y: auto;
     padding: 8px 12px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
     margin-right: 10px;
+    line-height: 1.4;
 }
 
 #chat-input::placeholder {
