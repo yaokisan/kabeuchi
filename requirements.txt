@@ -7,7 +7,7 @@ Werkzeug>=3.0,<4.0 # Flask 2.3 が依存
 # AI Models
 google-generativeai>=0.8.4,<0.9.0 # Function Calling 対応バージョン
 openai>=0.27,<1.0 # バージョン指定を少し緩めに
-anthropic>=0.5,<1.0 # バージョン指定を少し緩めに
+anthropic>=0.5.0,<0.6.0 # ★ v0.5.0 に戻す
 
 # Web Search
 duckduckgo-search>=2025.4.4,<2026.0.0 # 最新版を反映

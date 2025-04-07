@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
     restoreLastSelectedModel();
     
     setupChatInputAutoResize(); // ★ 新しい関数呼び出しを追加
+    updateSearchToggleVisibility(); // ★ 初期表示時のチェックボックス表示更新を追加
 });
 
 /**
@@ -63,16 +64,14 @@ function setupChatEvents() {
     // AIモデル選択変更時のイベント
     document.getElementById('ai-model').addEventListener('change', function() {
         currentChatModel = this.value;
-        // ローカルストレージに選択を保存
         localStorage.setItem('lastSelectedAIModel', currentChatModel);
         
-        // Claudeモデルが選択された場合のみ思考モードオプションを表示
+        // Claude用思考モードの表示切替
         const thinkingModeElement = document.getElementById('claude-thinking-mode');
-        if (currentChatModel.startsWith('claude')) {
-            thinkingModeElement.style.display = 'block';
-        } else {
-            thinkingModeElement.style.display = 'none';
-        }
+        thinkingModeElement.style.display = currentChatModel.startsWith('claude') ? 'block' : 'none';
+
+        // ★ 検索チェックボックスの表示切替
+        updateSearchToggleVisibility();
     });
     
     // 思考モードトグルのイベント
@@ -317,12 +316,23 @@ function restoreLastSelectedModel() {
         const modelSelect = document.getElementById('ai-model');
         if (modelSelect) {
             modelSelect.value = lastModel;
-            // 変更イベントを手動でトリガーして、UI（思考モードなど）を更新
-            const event = new Event('change');
-            modelSelect.dispatchEvent(event);
+            currentChatModel = lastModel; // ★ グローバル変数も先に更新
+            // 変更イベントは updateSearchToggleVisibility 呼び出し後の方が良いかも
+            // const event = new Event('change');
+            // modelSelect.dispatchEvent(event); 
         }
-        currentChatModel = lastModel; // グローバル変数も更新
+    } else {
+        // ローカルストレージにない場合、デフォルト値を設定
+        const modelSelect = document.getElementById('ai-model');
+        if (modelSelect) {
+            currentChatModel = modelSelect.value; // ドロップダウンの初期値を取得
+        }
     }
+    // ここで思考モードなどの初期表示も更新（changeイベントを発火させない場合）
+    const thinkingModeElement = document.getElementById('claude-thinking-mode');
+    if(thinkingModeElement) thinkingModeElement.style.display = currentChatModel.startsWith('claude') ? 'block' : 'none';
+
+    // updateSearchToggleVisibility(); // DOMContentLoaded 内で呼ばれるのでここでは不要かも
 }
 
 /**
@@ -464,4 +474,14 @@ function addMessage(sender, message) {
 
     messagesContainer.appendChild(messageElement);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// ★ 新しい関数: 検索チェックボックスの表示を更新
+function updateSearchToggleVisibility() {
+    const searchToggleContainer = document.querySelector('.search-toggle-container');
+    if (searchToggleContainer) {
+        // 現在選択されているモデルが 'gemini' で始まるかチェック
+        const isGeminiSelected = currentChatModel.startsWith('gemini');
+        searchToggleContainer.style.display = isGeminiSelected ? 'flex' : 'none';
+    }
 } 

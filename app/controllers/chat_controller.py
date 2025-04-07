@@ -364,56 +364,48 @@ Web検索ツールが利用可能な場合は、最新情報や外部情報が�
     return {"message": final_response_text, "sources": sources}
 
 def get_claude_response(model_name, context, chat_history, user_message, thinking_enabled, chat_context):
-    """Anthropic Claudeモデルを使用して応答を生成"""
-    messages = []
-    
-    # システムプロンプトの組み立て
-    system_prompt_base = f"""あなたはユーザーのアシスタントとして、ユーザーがチャットで入力した内容に応じて適切な内容を出力します。
+    """Anthropic Claudeモデルを使用して応答を生成 (旧 Completions API 互換)"""
+    if not ANTHROPIC_API_KEY or not anthropic_client:
+        raise ValueError("Anthropic API Keyまたはクライアントが設定されていません。")
 
-このチャットでは、あなたとユーザーの過去の会話履歴が自動的に提供されます。過去の会話のコンテキストを考慮して返答してください。ユーザーが過去の会話内容に言及した場合は、その履歴を参照して適切に応答してください。
-
-また、以下のドキュメントはユーザーが現在作成している内容で、この内容についての会話がこのチャットでは実施されます。
---- ドキュメントここから ---
-{context}
---- ドキュメントここまで ---
-"""
-    
-    # 選択テキスト -> チャットコンテキスト がある場合の追加指示
+    # プロンプトの組み立て (Human/Assistant形式)
+    prompt = f"\n\nHuman: あなたはユーザーのアシスタントです。以下のドキュメントと会話履歴、追加コンテキストを踏まえて応答してください。"
+    prompt += f"\n\n--- ドキュメント --- \n{context}\n--- ドキュメントここまで ---"
     if chat_context:
-        system_prompt = system_prompt_base + f"""\n\n重要: ユーザーは以下のテキストを現在の会話の最重要コンテキストとして指定しました。ユーザーの指示が曖昧な場合（例：「これについて教えて」）、直前の会話履歴よりもまず、この追加コンテキストについて言及・回答することを最優先してください。
---- 追加コンテキストここから ---
-{chat_context}
---- 追加コンテキストここまで ---
-"""
-    else:
-        system_prompt = system_prompt_base
+        prompt += f"\n\n--- 追加コンテキスト --- \n{chat_context}\n--- 追加コンテキストここまで ---"
     
-    # Claude API v2 (messages) では system パラメータを使用
-    # messagesリストにはシステムプロンプトを含めない
+    prompt += "\n\n--- 会話履歴 ---"
+    for msg in chat_history:
+        if msg.role == 'user':
+            prompt += f"\nHuman: {msg.content}"
+        else: # assistant
+            prompt += f"\nAssistant: {msg.content}"
+    prompt += f"\n--- 会話履歴ここまで ---"
+    
+    # 最新のユーザーメッセージを追加
+    prompt += f"\nHuman: {user_message}\n\nAssistant:"
 
-    # すべての会話履歴を追加
-    for msg in chat_history:  # すべてのメッセージを使用（制限なし）
-        messages.append({
-            "role": msg.role,
-            "content": msg.content
-        })
+    # thinking_enabled は Completions API では直接的なパラメータなし。
+    # 必要であればプロンプト内で指示する。
+
+    # Claudeモデルでレスポンスを生成 (Completions API)
+    max_tokens = 1024 # 必要に応じて調整
     
-    # 新しいユーザーメッセージを追加
-    messages.append({
-        "role": "user",
-        "content": user_message
-    })
-    
-    # Claudeモデルでレスポンスを生成
-    response = anthropic_client.messages.create(
-        model=model_name,
-        messages=messages,
-        system=system_prompt, # systemパラメータにプロンプトを渡す
-        # thinking_enabled はClaudeのAPIには直接対応するパラメータがないため、
-        # プロンプト内で指示するか、フロントエンド側で制御する
-    )
-    
-    return response.content[0].text
+    try:
+        completion = anthropic_client.completions.create(
+            model=model_name,
+            prompt=prompt,
+            max_tokens_to_sample=max_tokens,
+        )
+        return completion.completion
+    except Exception as e:
+        print(f"Claude API (Completions) 呼び出しエラー: {e}", file=sys.stderr)
+        error_message = f"Claude API呼び出し中にエラーが発生しました: {type(e).__name__}"
+        if hasattr(e, 'response') and hasattr(e.response, 'text'): 
+             error_message += f" - {e.response.text[:200]}"
+        elif hasattr(e, 'message'):
+             error_message += f" - {e.message}"
+        raise RuntimeError(error_message)
 
 def get_openai_response(model_name, context, chat_history, user_message, chat_context):
     """OpenAI GPTモデルを使用して応答を生成"""
