@@ -158,10 +158,16 @@ def send_message(doc_id):
         # ここでもエラーレスポンスを返す方が親切
         return jsonify({'success': False, 'message': 'データベースへの保存に失敗しました。'}), 500
 
+    ai_message = ai_response_data.get("message", "")
+    # ★ 応答の先頭が "ny" であれば削除する処理を追加
+    if ai_message.startswith("ny"):
+        print(f"--- AI応答の先頭から 'ny' を削除しました: {ai_message[:10]}... ---") # デバッグ用ログ
+        ai_message = ai_message[2:] # 先頭の2文字を削除
+
     # ★ フロントエンドに返すJSONに sources を含める
     return jsonify({
         'success': True, # 成功フラグを追加
-        'message': ai_response_data.get("message", ""),
+        'message': ai_message, # ★ 修正後のメッセージを返す
         'sources': ai_response_data.get("sources", []), # 情報源リストを追加
         'model': model_name,
         'thinking_enabled': thinking_enabled

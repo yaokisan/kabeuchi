@@ -111,10 +111,6 @@ function sendChatMessage() {
     const imageBase64ToSend = attachedImageBase64;
     const imageMimeTypeToSend = attachedImageMimeType;
     
-    // UIをリセット
-    chatInput.value = '';
-    removeAttachedImage(); // 添付画像を削除してプレビューを消す
-    
     // ★ ユーザーメッセージ（テキストのみ、または画像のみの場合もある）をUIに追加
     addMessageToChat('user', messageToSend, [], imageBase64ToSend); // 画像プレビューをユーザーメッセージに追加
     
@@ -151,11 +147,18 @@ function sendChatMessage() {
         }
         if (data.success) {
             addMessageToChat('assistant', data.message, data.sources);
+            // ★ 送信成功時にUIをリセット
+            chatInput.value = '';
+            removeAttachedImage();
+            // ★ 送信成功後にテキストエリアの高さをリセット
+            chatInput.style.height = 'auto'; // 高さを自動に戻す
         } else {
             addMessageToChat('assistant', data.message || 'エラーが発生しました。');
+            // ★ エラー時は入力内容を保持する
         }
         scrollChatToBottom();
-        clearContext(); 
+        // ★ コンテキストクリアは成功/失敗に関わらず行う（必要に応じて変更）
+        clearContext();
     })
     .catch(error => {
         console.error('チャットエラー:', error);
@@ -458,57 +461,6 @@ function setupChatInputAutoResize() {
 
     chatInput.addEventListener('input', adjustHeight);
     adjustHeight(); // 初期表示時にも高さを調整
-}
-
-// メッセージ送信関数
-function sendMessage() {
-    const message = chatInput.value.trim();
-    if (!message) return;
-
-    // ... (既存のメッセージ送信ロジック) ...
-
-    // 送信後に高さをリセット
-    chatInput.value = '';
-    chatInput.style.height = 'auto';
-}
-
-// イベントリスナー
-sendChatBtn.addEventListener('click', sendMessage);
-
-/* ★ ShiftなしEnterでの送信機能を無効化
-chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-    }
-});
-*/
-
-// 初期化関数の呼び出し
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initChat);
-} else {
-    initChat();
-}
-
-// チャットメッセージを追加する関数 (例)
-function addMessage(sender, message) {
-    const messagesContainer = document.querySelector('.chat-messages');
-    if (!messagesContainer) return;
-
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('chat-message', sender === 'user' ? 'user-message' : 'assistant-message');
-
-    if (sender === 'assistant') {
-        // MarkdownをHTMLに変換 (marked.jsなどを使用する場合)
-        // messageElement.innerHTML = marked.parse(message);
-        messageElement.textContent = message; // 仮実装
-    } else {
-        messageElement.textContent = message;
-    }
-
-    messagesContainer.appendChild(messageElement);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
 // ★ 新しい関数: 検索チェックボックスの表示を更新
