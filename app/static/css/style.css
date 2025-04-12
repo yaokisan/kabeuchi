@@ -284,6 +284,9 @@ input:checked + .slider:before {
     display: flex;
     align-items: center;
     background-color: var(--white);
+    position: sticky; /* ヘッダーを画面上部に固定 */
+    top: 0; /* 固定位置を最上部に */
+    z-index: 10; /* 他の要素より手前に表示 */
 }
 
 #document-title {
@@ -306,9 +309,17 @@ input:checked + .slider:before {
 }
 
 #editor-container {
-    flex: 1;
-    padding: 20px;
+    flex: 1; /* 利用可能なスペースを埋める */
+    padding: 0; /* パディングを削除し、子要素で管理 */
     background-color: var(--white);
+    overflow-y: auto; /* 縦方向にスクロール可能に */
+    position: relative; /* 子要素の絶対配置の基準点 */
+    display: flex; /* Flexboxレイアウトを使用 */
+    flex-direction: column; /* 子要素を縦に並べる */
+    /* ヘッダーの高さを除いたビューポートの高さに設定 */
+    /* ヘッダーのpadding (15*2) + border (1) = 31px を考慮し、さらにツールバーの高さを考慮 */
+    /* 正確な計算はツールバーの高さに依存するが、ここでは仮にヘッダー高さのみ引く */
+    height: calc(100vh - 61px); /* 61pxはヘッダーの実測値 */
 }
 
 /* QuillJSエディタカスタマイズ */
@@ -316,16 +327,27 @@ input:checked + .slider:before {
     border: none;
     border-bottom: 1px solid var(--border-color);
     padding: 10px 20px;
+    position: sticky; /* ツールバーをエディタコンテナ上部に固定 */
+    top: 0; /* 固定位置を最上部に */
+    z-index: 5; /* エディタ内容より手前に */
+    background-color: var(--white); /* 背景色を指定して下のコンテンツが透けないように */
 }
 
 .ql-container.ql-snow {
     border: none;
     font-size: 16px;
+    flex: 1; /* 残りの利用可能なスペースを埋める */
+    overflow: visible; /* コンテナ自体のスクロールは不要 */
+    /* display: flex と flex-direction: column を追加 */
+    display: flex;
+    flex-direction: column;
 }
 
 .ql-editor {
     padding: 20px;
-    min-height: calc(100vh - 170px);
+    min-height: auto; /* 最小高さを削除し、コンテンツに応じて伸縮 */
+    flex: 1; /* コンテナ内で利用可能なスペースを埋める */
+    overflow-y: auto; /* エディタ内容が長くなった場合にスクロールを可能にする */
 }
 
 /* 文字サイズ変更用クラス */

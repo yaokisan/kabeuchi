@@ -76,7 +76,32 @@ function initEditor() {
     editor = new Quill('#editor-container', {
         modules: {
             toolbar: toolbarOptions,
-            clipboard: { /* 前回の clipboard 設定は一旦削除 or コメントアウト */ }
+            clipboard: { /* 前回の clipboard 設定は一旦削除 or コメントアウト */ },
+            keyboard: {
+                bindings: {
+                    // キーボード操作時にスクロールを改善するカスタムバインディング
+                    moveDown: {
+                        key: 'down',
+                        handler: function(range, context) {
+                            // 標準のダウンキー操作を実行
+                            this.quill.selection.transformPosition(range.index, 1);
+                            // エディタコンテナが見えるようにスクロール
+                            ensureEditorVisibility();
+                            return false;
+                        }
+                    },
+                    moveUp: {
+                        key: 'up',
+                        handler: function(range, context) {
+                            // 標準のアップキー操作を実行
+                            this.quill.selection.transformPosition(range.index, -1);
+                            // エディタコンテナが見えるようにスクロール
+                            ensureEditorVisibility();
+                            return false;
+                        }
+                    }
+                }
+            }
         },
         placeholder: 'ここに内容を入力してください...',
         theme: 'snow'
@@ -171,6 +196,11 @@ function initEditor() {
             } else {
                  console.warn("動的に生成されたボタンの参照が見つかりません (selection-change)");
             }
+            
+            // カーソル位置が変わったらビジビリティを確保
+            if (range) {
+                ensureEditorVisibility();
+            }
         });
         
         // 「AIチャットに追加」ボタンのクリックイベントリスナーは既に上で設定済み
@@ -178,6 +208,15 @@ function initEditor() {
         // if (buttonElementForListener) { ... } // 不要
 
     }, 100); // 100ミリ秒後に実行
+    
+    // スクロール時にも対応
+    const editorContainer = document.getElementById('editor-container');
+    if (editorContainer) {
+        editorContainer.addEventListener('scroll', function() {
+            // スクロール位置を監視して必要に応じて調整
+            ensureToolbarVisibility();
+        });
+    }
 }
 
 /**
@@ -630,6 +669,51 @@ function applyEditorFontSize(size) {
     console.log(`エディタのフォントサイズを ${size}% に変更`);
 }
 
+/**
+ * カーソル位置に応じてエディタをスクロールして可視状態を確保する
+ */
+function ensureEditorVisibility() {
+    const selection = editor.getSelection();
+    if (!selection) return;
+    
+    const editorContainer = document.getElementById('editor-container');
+    if (!editorContainer) return;
+    
+    // カーソル位置のブラウザ座標を取得 
+    const bounds = editor.getBounds(selection.index);
+    
+    // コンテナの表示範囲
+    const containerTop = editorContainer.scrollTop;
+    const containerBottom = containerTop + editorContainer.clientHeight;
+    const boundsPadding = 50; // 余白のピクセル数
+    
+    // カーソルが表示範囲外の場合はスクロール
+    if (bounds.top - boundsPadding < containerTop) {
+        // カーソルが上部に近すぎる場合、上方向にスクロール
+        editorContainer.scrollTop = bounds.top - boundsPadding;
+    } else if (bounds.bottom + boundsPadding > containerBottom) {
+        // カーソルが下部に近すぎる場合、下方向にスクロール
+        editorContainer.scrollTop = bounds.bottom + boundsPadding - editorContainer.clientHeight;
+    }
+    
+    // ツールバーも確実に表示
+    ensureToolbarVisibility();
+}
+
+/**
+ * ツールバーが必ず表示されるようにスクロール位置を調整
+ */
+function ensureToolbarVisibility() {
+    // 必要に応じてスクロール位置を調整してツールバーを表示
+    const editorContainer = document.getElementById('editor-container');
+    const toolbar = document.querySelector('.ql-toolbar');
+    
+    if (!editorContainer || !toolbar) return;
+    
+    // 現在のスクロール位置がツールバーの高さを超えていたら、
+    // ツールバーはsticky属性により表示されるので何もしない
+}
+
 // 他のJSファイルから使用できるようにグローバルに公開
 window.editorAPI = {
     getCurrentDocumentId: function() {
@@ -638,5 +722,6 @@ window.editorAPI = {
     insertTextAtCursor: insertTextAtCursor,
     getEditorContents: function() {
         return editor ? editor.getContents() : null;
-    }
+    },
+    ensureEditorVisibility: ensureEditorVisibility
 }; 
