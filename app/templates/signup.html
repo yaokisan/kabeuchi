@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新規登録</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Reusing login page styles -->
+    <style>
+        body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f4f7f6; }
+        .auth-container { background-color: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .auth-container h1 { margin-bottom: 30px; color: #333; }
+        .auth-container input[type="email"],
+        .auth-container input[type="password"] { width: calc(100% - 20px); padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 4px; }
+        .auth-container button { width: 100%; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; transition: background-color 0.3s; }
+        .auth-container button:hover { background-color: #218838; }
+        .auth-container .error-message { color: red; margin-bottom: 15px; font-size: 14px; min-height: 1.2em; }
+        .auth-container .success-message { color: green; margin-bottom: 15px; font-size: 14px; min-height: 1.2em; } 
+        .auth-container .switch-link { margin-top: 20px; font-size: 14px; }
+        .auth-container .switch-link a { color: #007bff; text-decoration: none; }
+        .auth-container .switch-link a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <h1>新規登録</h1>
+        <div id="error-message" class="error-message"></div>
+        <div id="success-message" class="success-message"></div> <!-- For success messages like confirmation email sent -->
+        <form id="signup-form">
+            <input type="email" id="email" placeholder="メールアドレス" required autocomplete="email">
+            <input type="password" id="password" placeholder="パスワード (6文字以上)" required autocomplete="new-password" minlength="6">
+            <!-- Optional: Add password confirmation field -->
+            <!-- <input type="password" id="confirm-password" placeholder="パスワード確認" required autocomplete="new-password"> -->
+            <button type="submit">登録</button>
+        </form>
+        <div class="switch-link">
+            既にアカウントをお持ちですか？ <a href="/login">ログイン</a>
+        </div>
+    </div>
+
+    <!-- Supabase JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Auth JS -->
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+</body>
+</html> 

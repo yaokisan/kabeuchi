@@ -15,3 +15,8 @@ python-engineio==4.3.4
 python-socketio==5.7.2
 gevent             # geventを追加
 gevent-websocket   # gevent-websocketを追加
+requests
+flask-cors
+psycopg2-binary
+speechrecognition
+supabase-py

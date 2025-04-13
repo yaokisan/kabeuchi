@@ -4,6 +4,8 @@
 
 // DOMが読み込まれた後に実行
 document.addEventListener('DOMContentLoaded', function() {
+    // Ensure Auth is initialized and potentially wait for it?
+    // For now, assume fetchAuthenticatedApi is available globally when needed.
     loadDocuments();
     setupEventListeners();
 });
@@ -11,16 +13,21 @@ document.addEventListener('DOMContentLoaded', function() {
 /**
  * 全てのドキュメントを読み込んで表示
  */
-function loadDocuments() {
-    fetch('/api/document/list')
-        .then(response => response.json())
-        .then(documents => {
-            renderDocuments(documents);
-        })
-        .catch(error => {
-            console.error('ドキュメント一覧の取得に失敗しました:', error);
-            showError('ドキュメント一覧の読み込みに失敗しました。ページを再読み込みしてください。');
-        });
+async function loadDocuments() { // Make async
+    // Use fetchAuthenticatedApi instead of fetch
+    // fetch('/api/document/list')
+    try {
+        const documents = await fetchAuthenticatedApi('/api/document/list');
+        renderDocuments(documents);
+    } catch (error) {
+        console.error('ドキュメント一覧の取得に失敗しました:', error);
+        showError('ドキュメント一覧の読み込みに失敗しました。ログイン状態を確認するか、ページを再読み込みしてください。');
+        // Redirect to login if auth error?
+        if (error.message === 'User not authenticated') {
+             // Redirect is likely handled by fetchAuthenticatedApi or onAuthStateChange
+             // window.location.href = '/login';
+        }
+    }
 }
 
 /**
@@ -211,56 +218,58 @@ function hideModal() {
  * @param {string} docId - ドキュメントID
  * @param {string} newTitle - 新しいタイトル
  */
-function renameDocument(docId, newTitle) {
+async function renameDocument(docId, newTitle) { // Make async
     // 空のタイトルの場合はデフォルト値を設定
     if (!newTitle.trim()) {
         newTitle = '無題のドキュメント';
     }
-    
-    fetch(`/api/document/${docId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            title: newTitle
-        })
-    })
-    .then(response => response.json())
-    .then(updatedDoc => {
+
+    // Use fetchAuthenticatedApi
+    // fetch(`/api/document/${docId}`, {
+    try {
+        const updatedDoc = await fetchAuthenticatedApi(`/api/document/${docId}`, { // Pass URL and options
+            method: 'PUT',
+            body: JSON.stringify({
+                title: newTitle
+            })
+            // Content-Type header is added by fetchAuthenticatedApi
+        });
+
         // 成功したら、UIを更新
         const docCard = document.querySelector(`.document-card[data-id="${docId}"]`);
-        if (docCard) {
+        if (docCard && updatedDoc) { // Ensure updatedDoc is not null
             docCard.querySelector('h3').textContent = updatedDoc.title;
         }
-    })
-    .catch(error => {
+    } catch (error) {
         console.error('タイトル変更に失敗しました:', error);
-        showError('タイトルの変更に失敗しました。もう一度お試しください。');
-    });
+        showError(`タイトルの変更に失敗しました: ${error.message}`);
+    }
 }
 
 /**
  * ドキュメントを複製
  * @param {string} docId - ドキュメントID
  */
-function duplicateDocument(docId) {
-    fetch(`/api/document/${docId}/duplicate`, {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(newDoc => {
+async function duplicateDocument(docId) { // Make async
+    // Use fetchAuthenticatedApi
+    // fetch(`/api/document/${docId}/duplicate`, {
+    try {
+        const newDoc = await fetchAuthenticatedApi(`/api/document/${docId}/duplicate`, { // Pass URL and options
+            method: 'POST'
+            // No body needed, Content-Type handled by wrapper
+        });
+
         // 新しいドキュメントカードを作成
-        const card = createDocumentCard(newDoc);
-        
-        // グリッドの先頭に追加
-        const grid = document.getElementById('documents-grid');
-        grid.insertBefore(card, grid.firstChild);
-    })
-    .catch(error => {
+        if (newDoc) { // Ensure newDoc is not null
+            const card = createDocumentCard(newDoc);
+            // グリッドの先頭に追加
+            const grid = document.getElementById('documents-grid');
+            grid.insertBefore(card, grid.firstChild);
+        }
+    } catch (error) {
         console.error('ドキュメントの複製に失敗しました:', error);
-        showError('ドキュメントの複製に失敗しました。もう一度お試しください。');
-    });
+        showError(`ドキュメントの複製に失敗しました: ${error.message}`);
+    }
 }
 
 /**
@@ -280,53 +289,61 @@ function confirmDeleteDocument(docId) {
  * ドキュメントを削除
  * @param {string} docId - ドキュメントID
  */
-function deleteDocument(docId) {
-    fetch(`/api/document/${docId}`, {
-        method: 'DELETE'
-    })
-    .then(response => response.json())
-    .then(() => {
+async function deleteDocument(docId) { // Make async
+     // Use fetchAuthenticatedApi
+    // fetch(`/api/document/${docId}`, {
+    try {
+        // DELETE might return null on success or the deleted item depending on backend
+        const result = await fetchAuthenticatedApi(`/api/document/${docId}`, { // Pass URL and options
+            method: 'DELETE'
+        });
+
+        // Assume success if no error is thrown
         // 成功したら、UIから削除
         const docCard = document.querySelector(`.document-card[data-id="${docId}"]`);
         if (docCard) {
             docCard.remove();
         }
-        
         // ドキュメントがなくなった場合のメッセージ表示
         const grid = document.getElementById('documents-grid');
         if (grid.children.length === 0) {
             grid.innerHTML = '<div class="no-documents">ドキュメントがありません。新規ドキュメントを作成してください。</div>';
         }
-    })
-    .catch(error => {
+
+    } catch(error) {
         console.error('ドキュメントの削除に失敗しました:', error);
-        showError('ドキュメントの削除に失敗しました。もう一度お試しください。');
-    });
+        showError(`ドキュメントの削除に失敗しました: ${error.message}`);
+    }
 }
 
 /**
  * 新規ドキュメントを作成
  */
-function createNewDocument() {
-    fetch('/api/document/create', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            title: '無題のドキュメント',
-            content: ''
-        })
-    })
-    .then(response => response.json())
-    .then(newDoc => {
+async function createNewDocument() { // Make async
+    // Use fetchAuthenticatedApi
+    // fetch('/api/document/create', {
+    try {
+        const newDoc = await fetchAuthenticatedApi('/api/document/create', { // Pass URL and options
+            method: 'POST',
+            body: JSON.stringify({
+                title: '無題のドキュメント',
+                // content is likely optional or handled server-side on create
+                // content: ''
+            })
+            // Content-Type handled by wrapper
+        });
+
         // 作成したドキュメントのページに移動
-        window.location.href = `/?id=${newDoc.id}`;
-    })
-    .catch(error => {
+        if (newDoc && newDoc.id) { // Ensure newDoc has an ID
+             window.location.href = `/?id=${newDoc.id}`;
+        } else {
+             console.error('新規ドキュメント作成後のレスポンスにIDが含まれていません:', newDoc);
+             showError('ドキュメントは作成されましたが、リダイレクトに失敗しました。');
+        }
+    } catch (error) {
         console.error('新規ドキュメントの作成に失敗しました:', error);
-        showError('新規ドキュメントの作成に失敗しました。もう一度お試しください。');
-    });
+        showError(`新規ドキュメントの作成に失敗しました: ${error.message}`);
+    }
 }
 
 /**

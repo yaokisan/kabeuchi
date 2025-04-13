@@ -8,68 +8,82 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="app-container manage-container">
-        <!-- サイドバー -->
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <a href="{{ url_for('index') }}" class="app-title-link">
-                    <h2>KabeUchi</h2>
-                </a>
+    <div class="container">
+        <header>
+            <h1>ドキュメント管理</h1>
+            <!-- Auth Status Area -->
+            <div class="auth-status-header">
+                <span id="user-info" style="display: none;"></span>
+                <button id="logout-button" style="display: none;" class="secondary-btn">ログアウト</button>
+                <a id="login-link" href="/login" style="display: none;">ログイン</a>
+                <a id="signup-link" href="/signup" style="display: none;">新規登録</a>
             </div>
-            
-            <div class="sidebar-nav">
-                <a href="{{ url_for('index') }}" class="nav-link">
-                    <span class="icon">📝</span>
-                    エディタに戻る
-                </a>
-                <div class="nav-link active">
-                    <span class="icon">📋</span>
-                    ドキュメント管理
-                </div>
-                <a href="{{ url_for('settings') }}" class="nav-link">
-                    <span class="icon">⚙️</span>
-                    設定
-                </a>
-            </div>
-        </div>
+            <a href="/" class="back-link">メインページへ戻る</a>
+        </header>
         
-        <!-- メインコンテンツ -->
-        <div class="main-content manage-content">
-            <div class="manage-header">
-                <h1>ドキュメント管理</h1>
-                <div class="manage-actions">
-                    <div class="search-container">
-                        <input type="text" id="doc-search" placeholder="ドキュメントを検索...">
+        <div class="app-container manage-container">
+            <!-- サイドバー -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <a href="{{ url_for('index') }}" class="app-title-link">
+                        <h2>KabeUchi</h2>
+                    </a>
+                </div>
+                
+                <div class="sidebar-nav">
+                    <a href="{{ url_for('index') }}" class="nav-link">
+                        <span class="icon">📝</span>
+                        エディタに戻る
+                    </a>
+                    <div class="nav-link active">
+                        <span class="icon">📋</span>
+                        ドキュメント管理
                     </div>
-                    <div class="sort-container">
-                        <label for="sort-select">並び替え:</label>
-                        <select id="sort-select">
-                            <option value="updated_desc">更新日時 (新しい順)</option>
-                            <option value="updated_asc">更新日時 (古い順)</option>
-                            <option value="title_asc">タイトル (A-Z)</option>
-                            <option value="title_desc">タイトル (Z-A)</option>
-                        </select>
-                    </div>
-                    <button id="new-doc-btn" class="primary-btn">
-                        <span class="icon">+</span>新規ドキュメント
-                    </button>
+                    <a href="{{ url_for('settings') }}" class="nav-link">
+                        <span class="icon">⚙️</span>
+                        設定
+                    </a>
                 </div>
             </div>
             
-            <div class="documents-grid" id="documents-grid">
-                <!-- ドキュメントカードが動的に追加されます -->
-                <!-- 例: -->
-                <div class="document-card skeleton">
-                    <div class="document-card-header">
-                        <h3 class="skeleton-text"></h3>
-                        <p class="skeleton-date"></p>
+            <!-- メインコンテンツ -->
+            <div class="main-content manage-content">
+                <div class="manage-header">
+                    <h1>ドキュメント管理</h1>
+                    <div class="manage-actions">
+                        <div class="search-container">
+                            <input type="text" id="doc-search" placeholder="ドキュメントを検索...">
+                        </div>
+                        <div class="sort-container">
+                            <label for="sort-select">並び替え:</label>
+                            <select id="sort-select">
+                                <option value="updated_desc">更新日時 (新しい順)</option>
+                                <option value="updated_asc">更新日時 (古い順)</option>
+                                <option value="title_asc">タイトル (A-Z)</option>
+                                <option value="title_desc">タイトル (Z-A)</option>
+                            </select>
+                        </div>
+                        <button id="new-doc-btn" class="primary-btn">
+                            <span class="icon">+</span>新規ドキュメント
+                        </button>
                     </div>
-                    <div class="document-card-content skeleton-text-multi"></div>
-                    <div class="document-card-actions">
-                        <button class="skeleton-button"></button>
-                        <button class="skeleton-button"></button>
-                        <button class="skeleton-button"></button>
-                        <button class="skeleton-button"></button>
+                </div>
+                
+                <div class="documents-grid" id="documents-grid">
+                    <!-- ドキュメントカードが動的に追加されます -->
+                    <!-- 例: -->
+                    <div class="document-card skeleton">
+                        <div class="document-card-header">
+                            <h3 class="skeleton-text"></h3>
+                            <p class="skeleton-date"></p>
+                        </div>
+                        <div class="document-card-content skeleton-text-multi"></div>
+                        <div class="document-card-actions">
+                            <button class="skeleton-button"></button>
+                            <button class="skeleton-button"></button>
+                            <button class="skeleton-button"></button>
+                            <button class="skeleton-button"></button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -95,5 +109,8 @@
     
     <!-- カスタムJavaScript -->
     <script src="{{ url_for('static', filename='js/manage.js') }}"></script>
+    <!-- Auth JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> <!-- Ensure Supabase client is available -->
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 </body>
 </html> 

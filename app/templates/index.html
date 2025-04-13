@@ -67,6 +67,14 @@
             <a href="{{ url_for('manage_documents') }}" class="manage-link">ドキュメント管理</a>
             <!-- 設定ページへのリンク -->
             <a href="{{ url_for('settings') }}" class="settings-link">設定</a>
+            
+            <!-- 認証状態表示とログアウト -->
+            <div class="auth-status">
+                <span id="user-info" style="display: none;"></span>
+                <button id="logout-button" style="display: none;" class="secondary-btn">ログアウト</button>
+                <a id="login-link" href="/login" style="display: none;" class="auth-link">ログイン</a>
+                <a id="signup-link" href="/signup" style="display: none;" class="auth-link">新規登録</a>
+            </div>
         </div>
         
         <!-- メインコンテンツエリア -->
@@ -134,5 +142,7 @@
     <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
     <script src="{{ url_for('static', filename='js/speech.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chat-resize.js') }}"></script>
+    <!-- Auth JS (Load after other scripts if needed, or before if others depend on auth status immediately) -->
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 </body>
 </html> 

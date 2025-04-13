@@ -1,0 +1,31 @@
+# SaaS化 実装チェックリスト
+
+- [x] 1. **Supabaseプロジェクトの作成** (既存プロジェクト `ftcljbccnnmdmkmeesjv` を使用)
+    - [x] Supabaseアカウントの作成（未作成の場合）
+    - [x] Supabaseプロジェクトの作成（ダッシュボード or Vercel連携） - 既存プロジェクトを使用
+    - [x] プロジェクトAPI URLとanon keyの取得
+- [x] 2. **データベーススキーマの設計と移行**
+    - [x] 現状の`app/models/database.py`分析とSaaS向けテーブル設計
+    - [x] Supabaseへのテーブル作成（SQL Editor or マイグレーション）
+    - [ ] 既存データの移行（必要な場合） - 今回はスキップ
+- [x] 3. **Flaskアプリケーションの改修**
+    - [x] `requirements.txt`への`supabase-py`追加
+    - [x] Supabaseクライアント初期化設定の追加
+    - [x] データベース操作ロジックのSupabase API呼び出しへの置換 (`supabase-py`)
+- [x] 4. **認証機能の実装**
+    - [x] ログイン・サインアップ用HTMLテンプレート作成 (`login.html`, `signup.html`)
+    - [x] フロントエンドJSでのユーザー認証実装 (`@supabase/supabase-js`, `auth.js`)
+    - [x] Flask側での認証状態確認・アクセス制御（JWT検証, `token_required`デコレータ）
+    - [ ] ユーザー情報管理コントローラー作成/更新 (`user_controller.py`) - (今回は省略)
+    - [ ] **TODO:** 既存HTMLテンプレートへの認証UI要素追加 (index.html, etc.)
+- [x] 5. **テナント分離の実装 (SaaS化)**
+    - [x] DBスキーマへのテナントID追加 (実施済み)
+    - [x] テナントに基づくデータアクセス制限（RLS + Controller Logicで基本実装済み）
+    - [ ] 高度なテナント管理機能 (作成/招待/切替など) は省略
+- [x] 6. **Vercelへのデプロイ準備**
+    - [x] `vercel.json`作成（ビルド設定、ルーティング、WSGIサーバー設定）
+    - [ ] Vercel環境変数への機密情報設定 (Supabase URL/Keyなど) - **手動設定が必要**
+    - [x] フロントエンドへの設定値の安全な受け渡し (`/config` エンドポイント)
+- [ ] 7. **Vercelへのデプロイ**
+    - [ ] Vercel CLI or GitHub連携でのデプロイ
+    - [ ] デプロイ後の動作確認 

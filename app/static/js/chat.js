@@ -91,7 +91,7 @@ function setupContextIndicatorEvents() {
 /**
  * チャットメッセージを送信
  */
-function sendChatMessage() {
+async function sendChatMessage() {
     const chatInput = document.getElementById('chat-input');
     const message = chatInput.value.trim();
     
@@ -109,75 +109,79 @@ function sendChatMessage() {
     const loadingElement = createLoadingIndicator();
     document.getElementById('chat-messages').appendChild(loadingElement);
     
-    // ★ 変更点: selected_text の代わりに currentChatContext を使う
-    const contextToSend = currentChatContext; // 送信するコンテキストを保持
+    const contextToSend = currentChatContext;
     
-    fetch(`/api/chat/send/${documentId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            message: message,
-            model: currentChatModel,
-            thinking_enabled: thinkingEnabled,
-            // selected_text: selectedText // ← 削除
-            chat_context: contextToSend // 新しく chat_context を追加
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('チャットメッセージの送信に失敗しました');
-        }
-        return response.json();
-    })
-    .then(data => {
+    try {
+        // Use fetchAuthenticatedApi
+        const data = await fetchAuthenticatedApi(`/api/chat/send/${documentId}`, {
+            method: 'POST',
+            body: JSON.stringify({
+                message: message,
+                model: currentChatModel,
+                thinking_enabled: thinkingEnabled,
+                chat_context: contextToSend
+            })
+            // Content-Type handled by wrapper
+        });
+
         if (loadingElement && loadingElement.parentNode) {
             loadingElement.parentNode.removeChild(loadingElement);
         }
-        addMessageToChat('assistant', data.message);
+        if (data && data.message) { // Check if data and message exist
+             addMessageToChat('assistant', data.message);
+        } else {
+            console.warn('AIからの応答が空または不正です:', data);
+            addMessageToChat('assistant', 'AIからの応答を取得できませんでした。');
+        }
         scrollChatToBottom();
-        // ★ 送信成功後にコンテキストをクリア
-        clearContext(); 
-    })
-    .catch(error => {
+        // 送信成功後にコンテキストをクリア
+        clearContext();
+
+    } catch (error) {
         console.error('チャットエラー:', error);
         if (loadingElement && loadingElement.parentNode) {
             loadingElement.parentNode.removeChild(loadingElement);
         }
-        addMessageToChat('assistant', 'エラーが発生しました。しばらく経ってからもう一度お試しください。');
+        addMessageToChat('assistant', `エラーが発生しました: ${error.message}`);
         scrollChatToBottom();
-        // エラー時もコンテキストをクリアするかどうかは要件次第ですが、一旦クリアします
+        // エラー時もコンテキストをクリア
         clearContext();
-    });
+    }
 }
 
 /**
  * チャット履歴を読み込む
  * @param {number} documentId - ドキュメントID
  */
-function loadChatHistory(documentId) {
-    fetch(`/api/chat/history/${documentId}`)
-        .then(response => response.json())
-        .then(messages => {
-            // チャットエリアをクリア
-            const chatMessages = document.getElementById('chat-messages');
-            chatMessages.innerHTML = '';
-            
-            // メッセージがない場合は何もしない
-            if (messages.length === 0) return;
-            
-            // メッセージをUIに追加
-            messages.forEach(msg => {
-                addMessageToChat(msg.role, msg.content);
-            });
-            
-            // チャットエリアを最下部にスクロール
-            scrollChatToBottom();
-        })
-        .catch(error => {
-            console.error('チャット履歴の読み込みに失敗しました:', error);
+async function loadChatHistory(documentId) {
+    try {
+        // Use fetchAuthenticatedApi
+        const messages = await fetchAuthenticatedApi(`/api/chat/history/${documentId}`);
+
+        // チャットエリアをクリア
+        const chatMessages = document.getElementById('chat-messages');
+        chatMessages.innerHTML = '';
+
+        // メッセージがない場合は何もしない
+        if (!messages || messages.length === 0) return;
+
+        // メッセージをUIに追加
+        messages.forEach(msg => {
+            addMessageToChat(msg.role, msg.content);
         });
+
+        // チャットエリアを最下部にスクロール
+        scrollChatToBottom();
+
+    } catch (error) {
+        console.error('チャット履歴の読み込みに失敗しました:', error);
+        // Optionally show error in chat UI
+        // addMessageToChat('system', 'チャット履歴の読み込みに失敗しました。');
+        // Redirect if auth error?
+        if (error.message === 'User not authenticated') {
+            // Redirect handled by fetchAuthenticatedApi or onAuthStateChange
+        }
+    }
 }
 
 /**
@@ -316,7 +320,7 @@ function clearContext() {
 /**
  * AIとのチャット履歴をリセットする
  */
-function resetChatHistory() {
+async function resetChatHistory() {
     const confirmed = confirm('AIとのチャット履歴をリセットしますか？\nこの操作は元に戻せません。');
     if (!confirmed) {
         return;
@@ -328,35 +332,28 @@ function resetChatHistory() {
         return;
     }
 
-    // サーバーにチャット履歴のリセットをリクエスト
-    fetch(`/api/chat/reset/${documentId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('チャット履歴のリセットに失敗しました。');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
+    try {
+        // Use fetchAuthenticatedApi
+        const data = await fetchAuthenticatedApi(`/api/chat/reset/${documentId}`, {
+            method: 'POST'
+            // No body needed, Content-Type handled by wrapper
+        });
+
+        if (data && data.success) {
             // UIのチャット履歴をクリア
             const chatMessages = document.getElementById('chat-messages');
             chatMessages.innerHTML = '';
             console.log('チャット履歴がリセットされました。');
-            // 必要であれば、ユーザーに通知などを表示
             // addMessageToChat('system', 'チャット履歴がリセットされました。');
         } else {
-            alert('チャット履歴のリセットに失敗しました。');
+             console.error('チャットリセットAPIエラー:', data);
+            alert('チャット履歴のリセットに失敗しました。' + (data?.message ? ` (${data.message})` : ''));
         }
-    })
-    .catch(error => {
+
+    } catch (error) {
         console.error('チャットリセットエラー:', error);
-        alert('チャット履歴のリセット中にエラーが発生しました。');
-    });
+        alert(`チャット履歴のリセット中にエラーが発生しました: ${error.message}`);
+    }
 }
 
 // 他のJSファイルから呼び出せるようにAPIを公開
