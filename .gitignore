@@ -22,4 +22,4 @@ Thumbs.db
 
 # IDE/エディタ設定ファイル
 .idea/
-.vscode/ 
+.vscode/ venv.osaka/

@@ -11,7 +11,7 @@ import openai
 import google.generativeai as genai
 from anthropic import Anthropic
 
-# Import the decorator and helpers
+# Import the decorator and helpers using absolute path
 from app.utils.auth_utils import token_required, get_tenant_id_for_user, get_current_user
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
