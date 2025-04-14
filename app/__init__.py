@@ -1,3 +1,8 @@
+# app/__init__.py
+# This file can be empty or just contain package-level comments.
+# Initializations are moved to app.py or specific modules.
+print("app package loaded (__init__.py)") # Optional: add a print statement for debugging Vercel imports
+
 # app パッケージの初期化ファイル 
 # Flaskアプリケーションをパッケージからインポートできるようにする
 from flask import Flask

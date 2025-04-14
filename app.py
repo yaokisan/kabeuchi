@@ -1,37 +1,61 @@
-from flask import render_template, jsonify, request, redirect, url_for
-# Flask, SocketIO, Supabaseは __init__ からインポート
-from app import app, socketio, supabase
+from flask import Flask, render_template, jsonify, request, redirect, url_for
+from flask_socketio import SocketIO # Import SocketIO
 from dotenv import load_dotenv
 import os
 
-# コントローラーのブループリントをインポート
-from app.controllers.document_controller import document_bp
-from app.controllers.chat_controller import chat_bp
-# from app.controllers.speech_controller import speech_bp, handle_speech_recognition # Remove speech controller import
-from app.controllers.settings_controller import settings_bp
+# --- Flask App Initialization ---
+# Define 'app' here for Vercel's entrypoint detection
+app = Flask(__name__,
+            template_folder='app/templates', # Adjust path relative to app.py
+            static_folder='app/static')     # Adjust path relative to app.py
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'a_very_secret_key_for_dev_replace_in_prod')
+print("Flask App initialized in app.py")
 
-# 環境変数の読み込み (念のため)
+# --- Load Environment Variables ---
 load_dotenv()
 
-# --- 設定 ---
-# SECRET_KEY は SocketIO や Flask セッションで必要
-# app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'a_very_secret_key_for_dev_replace_in_prod')
+# --- Initialize Supabase Client (Imported) ---
+# Import the initialized Supabase client from its dedicated module
+try:
+    from app.supabase_client import supabase
+    print("Supabase client imported in app.py")
+except ImportError as e:
+    print(f"Error importing Supabase client in app.py: {e}")
+    # Handle error appropriately, maybe raise it to stop the app
+    raise e
 
-# --- SocketIO ハンドラ登録 ---
-# SocketIOインスタンスは __init__ からインポートしたものを使用
-# handle_speech_recognition(socketio) # Remove speech handler registration
-# print("音声認識ハンドラを登録しました (app.py)")
+# --- Initialize SocketIO ---
+# Initialize SocketIO *after* Flask app instance is created
+socketio = SocketIO(app,
+                   cors_allowed_origins="*",
+                   logger=True,
+                   engineio_logger=True,
+                   ping_timeout=60,
+                   ping_interval=25)
+print("SocketIO initialized in app.py")
 
-# --- ブループリント登録 ---
-# 重複登録を避けるチェック
-blueprints_to_register = [document_bp, chat_bp, settings_bp] # Remove speech_bp
-for bp in blueprints_to_register:
-    # appインスタンスは __init__ からインポートしたものを使用
-    if not app.blueprints.get(bp.name):
-        app.register_blueprint(bp)
-print("ブループリントを登録しました (app.py)")
+# --- Import and Register Blueprints ---
+# Ensure blueprints are imported *after* app exists
+# Also, update blueprint imports if they rely on 'app' or 'supabase' being passed differently
+try:
+    from app.controllers.document_controller import document_bp
+    from app.controllers.chat_controller import chat_bp
+    from app.controllers.settings_controller import settings_bp
 
-# --- ルート定義 ---
+    blueprints_to_register = [document_bp, chat_bp, settings_bp]
+    for bp in blueprints_to_register:
+        if not app.blueprints.get(bp.name):
+            app.register_blueprint(bp)
+    print("ブループリントを登録しました (app.py)")
+
+except ImportError as e:
+    print(f"Error importing or registering blueprints in app.py: {e}")
+    # Handle blueprint import errors
+    raise e
+
+
+# --- Route Definitions ---
+# Define routes directly on the 'app' instance
 
 @app.route('/')
 def index():

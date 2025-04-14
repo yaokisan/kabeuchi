@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, g
-from app import supabase # Import supabase client from app/__init__.py
+from app.supabase_client import supabase # Import from new location
 # Removed: from app.models.database import db, Document, ChatMessage
 import os
 import json

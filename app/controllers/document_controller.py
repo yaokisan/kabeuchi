@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, g # Import g
-from app import supabase # Import supabase client from app/__init__.py
+from app.supabase_client import supabase # Import from new location
 import uuid # Import uuid for potential ID conversion
 # Import the decorator and helpers
 from app.utils.auth_utils import token_required, get_tenant_id_for_user, get_current_user

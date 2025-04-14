@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import request, g, jsonify
-from app import supabase # Import supabase client
+from app.supabase_client import supabase # Import from new location
 
 # Decorator to protect routes that require authentication
 def token_required(f):
