@@ -7,7 +7,7 @@ import os
 # コントローラーのブループリントをインポート
 from app.controllers.document_controller import document_bp
 from app.controllers.chat_controller import chat_bp
-from app.controllers.speech_controller import speech_bp, handle_speech_recognition
+# from app.controllers.speech_controller import speech_bp, handle_speech_recognition # Remove speech controller import
 from app.controllers.settings_controller import settings_bp
 
 # 環境変数の読み込み (念のため)
@@ -19,12 +19,12 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'a_very_secret_key_for_dev_re
 
 # --- SocketIO ハンドラ登録 ---
 # SocketIOインスタンスは __init__ からインポートしたものを使用
-handle_speech_recognition(socketio)
-print("音声認識ハンドラを登録しました (app.py)")
+# handle_speech_recognition(socketio) # Remove speech handler registration
+# print("音声認識ハンドラを登録しました (app.py)")
 
 # --- ブループリント登録 ---
 # 重複登録を避けるチェック
-blueprints_to_register = [document_bp, chat_bp, speech_bp, settings_bp]
+blueprints_to_register = [document_bp, chat_bp, settings_bp] # Remove speech_bp
 for bp in blueprints_to_register:
     # appインスタンスは __init__ からインポートしたものを使用
     if not app.blueprints.get(bp.name):

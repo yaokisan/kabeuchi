@@ -2,13 +2,9 @@ Flask==2.2.3
 Werkzeug==2.2.3
 Flask-SocketIO==5.3.2
 python-dotenv==1.0.0
-Flask-SQLAlchemy==3.0.3
-SQLAlchemy==2.0.4
 openai==0.27.8
 google-generativeai==0.3.1
 anthropic==0.5.0
-librosa==0.10.0
-pydub==0.25.1
 # eventlet==0.33.3  # eventletを削除またはコメントアウト
 gunicorn==20.1.0
 python-engineio==4.3.4
@@ -17,6 +13,5 @@ gevent             # geventを追加
 gevent-websocket   # gevent-websocketを追加
 requests
 flask-cors
-psycopg2-binary
 speechrecognition
 supabase

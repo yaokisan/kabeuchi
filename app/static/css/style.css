@@ -397,78 +397,7 @@ input:checked + .slider:before {
 }
 
 /* 音声認識オーバーレイ */
-.speech-overlay {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.8);
-    color: var(--white);
-    padding: 10px 20px;
-    border-radius: 30px;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    box-shadow: var(--shadow);
-}
-
-.speech-content {
-    display: flex;
-    align-items: center;
-}
-
-.speech-indicator {
-    margin-right: 15px;
-}
-
-.speech-waves {
-    display: flex;
-    align-items: center;
-    height: 20px;
-}
-
-.speech-waves span {
-    display: inline-block;
-    width: 3px;
-    height: 100%;
-    margin: 0 2px;
-    background-color: var(--accent-color);
-    border-radius: 3px;
-    animation: wave 1.2s infinite ease-in-out;
-}
-
-.speech-waves span:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.speech-waves span:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-.speech-waves span:nth-child(4) {
-    animation-delay: 0.6s;
-}
-
-.speech-waves span:nth-child(5) {
-    animation-delay: 0.8s;
-}
-
-@keyframes wave {
-    0%, 100% {
-        height: 6px;
-    }
-    50% {
-        height: 18px;
-    }
-}
-
-#speech-text {
-    min-width: 150px;
-    max-width: 500px;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
+/* Remove rules related to .speech-overlay, .speech-content, .speech-indicator, .speech-waves */
 
 /* ドキュメント管理ページ */
 .manage-container .main-content {

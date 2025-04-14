@@ -24,16 +24,6 @@
             <!-- 新規ドキュメント作成ボタン -->
             <button id="new-document-btn" class="primary-btn pulse-animation">新規ドキュメント</button>
             
-            <!-- マイク操作トグル -->
-            <div class="mic-toggle">
-                <label for="mic-toggle-switch">音声入力:</label>
-                <label class="switch">
-                    <input type="checkbox" id="mic-toggle-switch">
-                    <span class="slider round"></span>
-                </label>
-                <div id="mic-status">オフ</div>
-            </div>
-            
             <!-- AIモデル選択 -->
             <div class="model-selector">
                 <label for="ai-model">AIモデル:</label>
@@ -94,18 +84,6 @@
             <div id="editor-container">
                 <!-- QuillJSエディタが挿入されます -->
             </div>
-            
-            <!-- 音声認識オーバーレイ -->
-            <div id="speech-overlay" class="speech-overlay" style="display: none;">
-                <div class="speech-content">
-                    <div class="speech-indicator">
-                        <div class="speech-waves">
-                            <span></span><span></span><span></span><span></span><span></span>
-                        </div>
-                    </div>
-                    <div id="speech-text">音声を認識中...</div>
-                </div>
-            </div>
         </div>
         
         <!-- チャットエリア -->
@@ -140,7 +118,6 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
     <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/speech.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chat-resize.js') }}"></script>
     <!-- Auth JS (Load after other scripts if needed, or before if others depend on auth status immediately) -->
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
