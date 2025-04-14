@@ -19,4 +19,4 @@ requests
 flask-cors
 psycopg2-binary
 speechrecognition
-supabase-py
+supabase
