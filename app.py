@@ -15,7 +15,7 @@ load_dotenv()
 
 # --- 設定 ---
 # SECRET_KEY は SocketIO や Flask セッションで必要
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'a_very_secret_key_for_dev_replace_in_prod')
+# app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'a_very_secret_key_for_dev_replace_in_prod')
 
 # --- SocketIO ハンドラ登録 ---
 # SocketIOインスタンスは __init__ からインポートしたものを使用
@@ -96,7 +96,7 @@ def get_config():
 # --- アプリケーション実行 ---
 
 if __name__ == '__main__':
-    print("アプリケーションを起動します (app.py)...")
+    print("アプリケーションを起動します (app.py - local)...")
     # use_reloader=False は SocketIO+デバッグモードでの二重実行や初期化問題を回避するため推奨
     # socketio インスタンスは __init__ からインポートしたものを使用
     socketio.run(app, debug=True, use_reloader=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))
