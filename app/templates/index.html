@@ -74,6 +74,9 @@
                 <a href="{{ url_for('index') }}" class="app-title-link">
                     <h2>KabeUchi</h2>
                 </a>
+                <!-- ▼▼▼ サイドバー非表示ボタン (ヘッダーへ移動) ▼▼▼ -->
+                <button id="toggle-sidebar-btn" class="toggle-panel-btn" title="サイドバーを隠す">◀</button>
+                <!-- ▲▲▲ サイドバー非表示ボタン ▲▲▲ -->
             </div>
             
             <!-- 新規ドキュメント作成ボタン -->
@@ -122,6 +125,9 @@
             <a href="{{ url_for('manage_documents') }}" class="manage-link">ドキュメント管理</a>
             <!-- 設定ページへのリンク -->
             <a href="{{ url_for('settings') }}" class="settings-link">設定</a>
+
+            <!-- 元のボタン位置 (削除) -->
+            <!-- <button id="toggle-sidebar-btn" class="toggle-panel-btn" title="サイドバーを隠す">◀</button> -->
         </div>
         
         <!-- メインコンテンツエリア -->
@@ -173,11 +179,14 @@
         
         <!-- チャットエリア -->
         <div class="chat-area">
-            <div class="chat-resize-handle"></div>
+            <!-- ▼▼▼ チャット欄非表示ボタン (ヘッダー内へ移動) ▼▼▼ -->
             <div class="chat-header">
                 <h3>AIチャット</h3>
                 <button id="reset-chat-btn" class="reset-btn" title="チャット履歴をリセット">🗑️</button>
+                <button id="toggle-chat-btn" class="toggle-panel-btn" title="チャット欄を隠す">▶</button>
             </div>
+            <!-- ▲▲▲ チャット欄非表示ボタン ▲▲▲ -->
+            <div class="chat-resize-handle"></div>
             
             <div class="chat-messages" id="chat-messages">
                 <!-- チャットメッセージが動的に追加されます -->

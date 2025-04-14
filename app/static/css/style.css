@@ -84,6 +84,10 @@ input:focus, select:focus, textarea:focus {
     margin-bottom: 20px;
     padding-bottom: 15px;
     border-bottom: 1px solid var(--border-color);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .app-title-link {
@@ -397,10 +401,20 @@ input:checked + .slider:before {
 .chat-header {
     padding: 15px;
     border-bottom: 1px solid var(--border-color);
+    position: relative; /* ボタンの絶対配置基準 */
+    display: flex; /* タイトルとリセットボタンを左、トグルボタンを右にするため */
+    align-items: center;
 }
 
 .chat-header h3 {
     font-size: 16px;
+    margin-right: auto; /* タイトルを左に押し出す */
+}
+
+#reset-chat-btn {
+    margin-right: 10px; /* トグルボタンとの間に少しスペース */
+    position: relative; /* z-indexが効くように */
+    z-index: 5;
 }
 
 .chat-messages {
@@ -743,16 +757,57 @@ input:checked + .slider:before {
 @media (max-width: 1024px) {
     .app-container {
         flex-direction: column;
+        height: auto; /* 100vh 制限を解除 */
+        overflow: visible; /* 全体の overflow も visible に */
     }
-    
+
     .sidebar, .chat-area {
         width: 100%;
         height: auto;
-        max-height: 30vh;
+        max-height: 40vh; /* モバイルでの高さを調整 (例: 40vh) */
+        overflow-y: auto; /* サイドバー/チャットは内部スクロール維持 */
+        /* 必要に応じてボーダーなどを調整 */
+        border-right: none;
+        border-left: none;
+        border-bottom: 1px solid var(--border-color);
     }
-    
+    /* チャットエリアは最後に表示されるように order を変更 */
+    .chat-area {
+        order: 1;
+    }
+
     .main-content {
-        order: -1;
+        order: -1; /* エディタを一番上に */
+        overflow: visible; /* 内容に合わせて伸びるように */
+        height: auto; /* 高さを自動に */
+        border-bottom: 1px solid var(--border-color); /* 区切り線 */
+    }
+
+    #editor-container {
+        height: auto; /* 固定高さを解除 */
+        overflow: visible; /* 内部スクロールを解除 */
+    }
+
+    .ql-editor {
+        overflow: visible; /* 内部スクロールを解除 */
+        min-height: 60vh; /* モバイルでの最小高さを設定 (例: 60vh、調整可能) */
+        /* flex: 1; は維持 */
+    }
+
+    /* ヘッダーとツールバーの固定を解除 */
+    .document-header,
+    .ql-toolbar.ql-snow {
+        position: static; /* 固定を解除 */
+    }
+
+    /* 非表示時のボタンの位置調整（必要であれば）*/
+    /* モバイルでは常に表示するか、別のUIにする可能性もあるため一旦保留 */
+    .app-container.sidebar-hidden #toggle-sidebar-btn,
+    .app-container.chat-hidden #toggle-chat-btn {
+        /* position: fixed のままだとスクロール時に追従する */
+        /* 例: position: absolute; top: 5px; left: 5px; など */
+        /* またはモバイルではトグルボタンを非表示にするなど */
+        /* position: static; display: none; */ /* 例: モバイルでは非表示 */
     }
 }
 
@@ -1049,4 +1104,112 @@ input:checked + .slider:before {
 .message-sources .source-domain {
     color: var(--text-light);
     margin-left: 3px;
+}
+
+/* トグルボタン共通スタイル */
+.toggle-panel-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+    position: absolute; /* 位置調整のため */
+    z-index: 10; /* 他の要素より手前に */
+}
+
+.toggle-panel-btn:hover {
+    background-color: var(--primary-dark);
+}
+
+/* サイドバートグルボタンの位置調整 (表示時) */
+#toggle-sidebar-btn {
+    position: relative;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* チャットトグルボタンの位置調整 (表示時) */
+#toggle-chat-btn {
+    position: absolute;
+    top: 10px; /* 上からの位置 */
+    right: 10px; /* 右からの位置 */
+    /* transform を削除 */
+    /* padding やサイズを微調整 */
+    padding: 4px 8px;
+    font-size: 12px;
+    z-index: 10; /* 他のボタンより手前に */
+}
+
+/* 非表示状態のスタイル */
+.app-container.sidebar-hidden .sidebar {
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    overflow: hidden; /* はみ出したコンテンツを隠す */
+    border-right: none;
+}
+
+.app-container.chat-hidden .chat-area {
+    width: 0 !important; /* 確実に幅を0にする */
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    overflow: hidden !important;
+    border-left: none !important;
+    /* transition も維持 */
+    transition: width 0.3s ease, padding 0.3s ease, border 0.3s ease;
+}
+
+/* サイドバー非表示時のトグルボタンの位置 (新しいスタイル) */
+.app-container.sidebar-hidden #toggle-sidebar-btn {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background-color: var(--primary-color);
+    z-index: 1001;
+    transition: background-color 0.3s ease;
+}
+.app-container.sidebar-hidden #toggle-sidebar-btn:hover {
+    background-color: var(--primary-dark);
+}
+
+/* チャット欄非表示時のトグルボタンの位置 (新しいスタイル) */
+.app-container.chat-hidden #toggle-chat-btn {
+    position: fixed; /* 画面右上に固定 */
+    top: 10px;
+    right: 10px;
+    /* left, transform を削除 */
+    background-color: var(--primary-color); /* 色を調整 */
+    /* rotation はJSでアイコンが変わるので不要かも */
+    z-index: 1001; /* 最前面に */
+     /* transition を再定義（必要なら） */
+    transition: background-color 0.3s ease;
+}
+.app-container.chat-hidden #toggle-chat-btn:hover {
+    background-color: var(--primary-dark);
+}
+
+/* メインコンテンツの幅調整（transitionを追加） */
+.main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden; /* エディタ部分がはみ出さないように */
+    transition: margin-left 0.3s ease, margin-right 0.3s ease; /* 幅変更をアニメーション */
+}
+
+/* サイドバー/チャット非表示時のメインコンテンツ調整 */
+.app-container.sidebar-hidden .main-content {
+    margin-left: 0; /* サイドバー分のマージンをなくす */
+}
+.app-container.chat-hidden .main-content {
+    margin-right: 0; /* チャット欄分のマージンをなくす */
+}
+
+/* 各要素の transition も調整 */
+.sidebar, .chat-area {
+    transition: width 0.3s ease, padding 0.3s ease, border 0.3s ease;
 } 

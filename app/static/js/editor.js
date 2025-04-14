@@ -45,6 +45,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadLatestDocumentOrShowEmpty();
             }
         }
+
+        // setupPanelToggles(); // ★ 削除: main.jsで呼び出すため
     } catch (error) {
         console.error('ページ初期化中にエラーが発生しました:', error);
         // 重大なエラーの場合、ユーザーに通知
@@ -724,4 +726,70 @@ window.editorAPI = {
         return editor ? editor.getContents() : null;
     },
     ensureEditorVisibility: ensureEditorVisibility
-}; 
+};
+
+// ★ 新しい関数: サイドバーとチャット欄のトグル機能を設定
+function setupPanelToggles() {
+    const appContainer = document.querySelector('.app-container');
+    const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+    const toggleChatBtn = document.getElementById('toggle-chat-btn');
+    const sidebar = document.querySelector('.sidebar');
+    const chatArea = document.querySelector('.chat-area');
+
+    if (!appContainer || !toggleSidebarBtn || !toggleChatBtn || !sidebar || !chatArea) {
+        console.error('Toggle panel elements not found.');
+        return;
+    }
+
+    // サイドバートグル
+    toggleSidebarBtn.addEventListener('click', () => {
+        appContainer.classList.toggle('sidebar-hidden');
+        // ボタンのテキスト/タイトルを切り替え
+        const isHidden = appContainer.classList.contains('sidebar-hidden');
+        toggleSidebarBtn.textContent = isHidden ? '▶' : '◀'; // アイコンを切り替え
+        toggleSidebarBtn.title = isHidden ? 'サイドバーを表示' : 'サイドバーを隠す';
+        // ★ レイアウト変更後にエディタのリサイズをトリガーする（Quillの場合）
+        if (window.quill) {
+             // 既存の setTimeout を維持
+             setTimeout(() => window.quill.root.dispatchEvent(new Event('resize')), 310);
+        }
+    });
+
+    // 初期状態でボタンのテキスト/タイトルを設定
+    if (appContainer.classList.contains('sidebar-hidden')) {
+        toggleSidebarBtn.textContent = '▶'; // 初期状態が非表示なら開くアイコン
+        toggleSidebarBtn.title = 'サイドバーを表示';
+    } else {
+         toggleSidebarBtn.textContent = '◀'; // 初期状態が表示なら閉じるアイコン
+         toggleSidebarBtn.title = 'サイドバーを隠す';
+    }
+
+    // チャット欄トグル
+    toggleChatBtn.addEventListener('click', () => {
+        appContainer.classList.toggle('chat-hidden');
+        // ボタンのテキスト/タイトルを切り替え
+        const isHidden = appContainer.classList.contains('chat-hidden');
+        toggleChatBtn.textContent = isHidden ? '◀' : '▶';
+        toggleChatBtn.title = isHidden ? 'チャット欄を表示' : 'チャット欄を隠す';
+         // ★ レイアウト変更後にエディタのリサイズをトリガーする（Quillの場合）
+        if (window.quill) {
+             setTimeout(() => window.quill.root.dispatchEvent(new Event('resize')), 310);
+        }
+        // ★ チャットのリサイズハンドルも連動して表示/非表示
+        const resizeHandle = document.querySelector('.chat-resize-handle');
+        if(resizeHandle) {
+            resizeHandle.style.display = isHidden ? 'none' : 'block';
+        }
+    });
+
+    // 初期状態でボタンのテキスト/タイトルを設定
+    if (appContainer.classList.contains('chat-hidden')) {
+        toggleChatBtn.textContent = '◀'; // 初期アイコンもOK
+        toggleChatBtn.title = 'チャット欄を表示';
+        const resizeHandle = document.querySelector('.chat-resize-handle');
+        if(resizeHandle) resizeHandle.style.display = 'none';
+    } else {
+        toggleChatBtn.textContent = '▶'; // ★ 初期状態が表示の場合のアイコンを追加
+        toggleChatBtn.title = 'チャット欄を隠す'; // ★ 初期状態が表示の場合のタイトルを追加
+    }
+} 
