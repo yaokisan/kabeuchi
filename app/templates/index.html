@@ -10,6 +10,61 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- Socket.IO -->
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <style>
+        /* 画像プレビュー用の簡単なスタイル */
+        #image-preview-container {
+            padding: 5px 10px 0 10px;
+            max-height: 100px; /* プレビューの高さを制限 */
+            overflow: hidden;
+            position: relative; /* 削除ボタンの位置基準 */
+            border-top: 1px solid var(--border-color); /* 上に線追加 */
+        }
+        #image-preview-container img {
+            max-width: 100%;
+            max-height: 90px; /* コンテナより少し小さく */
+            display: block;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        #remove-image-btn {
+            position: absolute;
+            top: 8px;
+            right: 15px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+            width: 18px;
+            height: 18px;
+            line-height: 16px;
+            text-align: center;
+            padding: 0;
+        }
+        /* 文字サイズ変更UI用 */
+        .font-size-selector {
+            margin-left: auto;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+        }
+        .font-size-selector label {
+            margin-right: 5px;
+            color: var(--text-light);
+        }
+        .font-size-selector select {
+            padding: 3px 6px;
+            font-size: 12px;
+            width: auto; /* 幅を自動に */
+            border-radius: 3px;
+        }
+        /* ドキュメントヘッダー内のアクションボタン */
+        .document-actions {
+             margin-left: 10px;
+        }
+    </style>
 </head>
 <body>
     <div class="app-container">
@@ -19,6 +74,9 @@
                 <a href="{{ url_for('index') }}" class="app-title-link">
                     <h2>KabeUchi</h2>
                 </a>
+                <!-- ▼▼▼ サイドバー非表示ボタン (ヘッダーへ移動) ▼▼▼ -->
+                <button id="toggle-sidebar-btn" class="toggle-panel-btn" title="サイドバーを隠す">◀</button>
+                <!-- ▲▲▲ サイドバー非表示ボタン ▲▲▲ -->
             </div>
             
             <!-- 新規ドキュメント作成ボタン -->
@@ -67,6 +125,9 @@
             <a href="{{ url_for('manage_documents') }}" class="manage-link">ドキュメント管理</a>
             <!-- 設定ページへのリンク -->
             <a href="{{ url_for('settings') }}" class="settings-link">設定</a>
+
+            <!-- 元のボタン位置 (削除) -->
+            <!-- <button id="toggle-sidebar-btn" class="toggle-panel-btn" title="サイドバーを隠す">◀</button> -->
         </div>
         
         <!-- メインコンテンツエリア -->
@@ -74,6 +135,22 @@
             <!-- ドキュメントタイトル -->
             <div class="document-header">
                 <input type="text" id="document-title" placeholder="ドキュメントタイトル" value="無題のドキュメント">
+                <div class="font-size-selector">
+                    <label for="editor-font-size">文字サイズ:</label>
+                    <select id="editor-font-size">
+                        <option value="50">50%</option>
+                        <option value="60">60%</option>
+                        <option value="70">70%</option>
+                        <option value="80">80%</option>
+                        <option value="90">90%</option>
+                        <option value="100" selected>100%</option>
+                        <option value="110">110%</option>
+                        <option value="120">120%</option>
+                        <option value="130">130%</option>
+                        <option value="140">140%</option>
+                        <option value="150">150%</option>
+                    </select>
+                </div>
                 <div class="document-actions">
                     <button id="save-document-btn" class="action-btn" title="保存">
                         <span class="btn-icon">💾</span>
@@ -102,11 +179,14 @@
         
         <!-- チャットエリア -->
         <div class="chat-area">
-            <div class="chat-resize-handle"></div>
+            <!-- ▼▼▼ チャット欄非表示ボタン (ヘッダー内へ移動) ▼▼▼ -->
             <div class="chat-header">
                 <h3>AIチャット</h3>
                 <button id="reset-chat-btn" class="reset-btn" title="チャット履歴をリセット">🗑️</button>
+                <button id="toggle-chat-btn" class="toggle-panel-btn" title="チャット欄を隠す">▶</button>
             </div>
+            <!-- ▲▲▲ チャット欄非表示ボタン ▲▲▲ -->
+            <div class="chat-resize-handle"></div>
             
             <div class="chat-messages" id="chat-messages">
                 <!-- チャットメッセージが動的に追加されます -->
@@ -117,8 +197,31 @@
                 <span>text</span>
                 <button id="clear-chat-context-btn" class="clear-context-btn">×</button>
             </div>
+            
+            <!-- 検索チェックボックス -->
+            <div class="search-toggle-container" style="display: none;">
+                <input type="checkbox" id="enable-search-checkbox">
+                <label for="enable-search-checkbox">Web検索を有効にする</label>
+            </div>
+
+            <!-- ★ 画像プレビューエリアを追加 -->
+            <div id="image-preview-container" style="display: none;">
+                <img id="image-preview" src="#" alt="Image preview"/>
+                <button id="remove-image-btn" title="画像を削除">×</button>
+            </div>
+
             <div class="chat-input-container">
-                <textarea id="chat-input" placeholder="メッセージを入力..."></textarea>
+                <!-- ★ 非表示のファイル入力要素を追加 -->
+                <input type="file" id="chat-image-input" accept="image/*" style="display: none;">
+                <!-- ★ 画像添付ボタンを追加 -->
+                <button id="attach-image-btn" class="icon-btn" title="画像を添付" style="margin-right: 5px;">
+                    <!-- SVGアイコン -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-image" viewBox="0 0 16 16">
+                        <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/>
+                        <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
+                    </svg>
+                </button>
+                <textarea id="chat-input" placeholder="メッセージを入力... (画像も添付できます)"></textarea>
                 <button id="send-chat-btn">送信</button>
             </div>
         </div>

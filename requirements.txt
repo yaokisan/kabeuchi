@@ -1,17 +1,28 @@
-Flask==2.2.3
-Werkzeug==2.2.3
-Flask-SocketIO==5.3.2
-python-dotenv==1.0.0
-Flask-SQLAlchemy==3.0.3
-SQLAlchemy==2.0.4
-openai==0.27.8
-google-generativeai==0.3.1
-anthropic==0.5.0
-librosa==0.10.0
-pydub==0.25.1
-# eventlet==0.33.3  # eventletを削除またはコメントアウト
-gunicorn==20.1.0
-python-engineio==4.3.4
-python-socketio==5.7.2
-gevent             # geventを追加
-gevent-websocket   # gevent-websocketを追加
+# Web Framework
+Flask>=2.3,<3.0
+Flask-SocketIO>=5.3,<6.0
+Flask-SQLAlchemy>=3.0,<4.0
+Werkzeug>=3.0,<4.0 # Flask 2.3 が依存
+
+# AI Models
+google-generativeai>=0.8.4,<0.9.0 # Function Calling 対応バージョン
+openai>=0.27,<1.0 # バージョン指定を少し緩めに
+anthropic>=0.18.0,<0.19.0 # ★ 新しいhttpxに対応したバージョンに変更
+
+# Web Search
+duckduckgo-search>=6.0.0,<7.0.0 # 最新のメジャーバージョンを指定
+
+# Database
+SQLAlchemy>=2.0,<3.0 # Flask-SQLAlchemy 3.0 が依存
+
+# Utilities
+python-dotenv>=1.0,<2.0
+requests>=2.32,<3.0 # google-api-core が依存
+urllib3>=1.26,<2.0 # requests が依存
+httpx>=0.25.0,<0.26.0 # ★ anthropic 0.18.1 との互換性のため一時的にダウングレード
+pydub>=0.25.0,<0.26.0 # 音声処理用に追加
+
+# SocketIO Server (Optional but recommended for production)
+# eventlet or gevent
+# gevent # 例: 本番環境でgeventを使う場合コメント解除
+# gevent-websocket # 例: 本番環境でgeventを使う場合コメント解除

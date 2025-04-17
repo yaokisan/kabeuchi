@@ -7,9 +7,10 @@ KabeUchiは、個人の思考深化とアイデア整理を支援するWebアプ
 - **リッチテキストエディタ**: Googleドキュメントのような直感的な操作感でメモを作成・編集。自動保存機能付き。
 - **マルチAIチャット機能**: 現在の文書を参照しながら複数のAIモデルと対話。
   - 対応モデル: Google Gemini, Anthropic Claude, OpenAI GPT
+  - **Web検索機能 (Gemini)**: チャット時にAIが必要と判断、またはユーザーが指示した場合にWeb検索を実行し、最新情報を反映した回答を生成。参照元URLも表示。
   - AIの応答はMarkdown形式で表示。
   - 過去のチャット履歴をすべて参照して応答。
-  - チャット欄の幅はドラッグで調整可能。
+  - チャット欄の幅と高さはドラッグで調整可能。
   - 最後に選択したAIモデルを記憶。
 - **音声入力機能**: マイクからの音声をリアルタイムでテキスト化し、エディタに挿入。
 - **ドキュメント管理**: 作成したドキュメントの一覧表示、検索、並び替え、タイトル変更、複製、削除など。
@@ -25,15 +26,15 @@ KabeUchiは、個人の思考深化とアイデア整理を支援するWebアプ
 
 ### 前提条件
 
-- Python 3.8以上
+- Python 3.9以上 (推奨)
 - pip (Pythonパッケージマネージャー)
 
 ### セットアップ手順
 
 1.  リポジトリをクローンまたはダウンロード:
     ```bash
-    git clone <repository-url>
-    cd KabeUchi
+    git clone https://github.com/yaokisan/kabeuchi.git
+    cd kabeuchi
     ```
 
 2.  仮想環境を作成して有効化:
@@ -82,7 +83,7 @@ KabeUchiは、個人の思考深化とアイデア整理を支援するWebアプ
     -   初回アクセス時は、最後に編集していたドキュメント、または最新のドキュメントが開かれます。ドキュメントがない場合は新規作成されます。
     -   左側のサイドバーから新規ドキュメントを作成、最近のドキュメントを開く、AIモデルを選択、音声入力のオン/オフを切り替え、設定ページへ移動できます。
     -   中央のエディタでテキストを入力・編集します。内容は自動保存されますが、ヘッダーの手動保存ボタン💾でも保存できます。
-    -   右側のチャットエリアでAIと対話します。送信は `Cmd+Enter` (Mac) または `Ctrl+Enter` (Windows) です。
+    -   右側のチャットエリアでAIと対話します。送信は `Cmd+Enter` (Mac) または `Ctrl+Enter` (Windows) です。Geminiモデル選択時は、チャット欄上部のチェックボックスでWeb検索機能の有効/無効を切り替えられます。
     -   サイドバー下部の「ドキュメント管理」から、過去のドキュメントを管理できます。
 
 ## 主要機能の詳細
@@ -102,6 +103,7 @@ KabeUchiは、個人の思考深化とアイデア整理を支援するWebアプ
     -   OpenAI ChatGPT: `gpt-4o`, `gpt-4.5-preview`
 -   チャット欄はリサイズ可能
 -   モデル選択は保持される
+-   **Web検索 (Gemini)**: 「Web検索を有効にする」チェックボックスをオンにすると、AIが必要に応じて、またはユーザーの指示でWeb検索を実行し、参照元URLと共に回答します。
 
 ### 音声入力機能
 
@@ -121,10 +123,10 @@ KabeUchiは、個人の思考深化とアイデア整理を支援するWebアプ
 
 ## 技術スタック
 
--   **バックエンド**: Python, Flask, SQLAlchemy, Flask-SocketIO, python-dotenv
+-   **バックエンド**: Python, Flask, SQLAlchemy, Flask-SocketIO, python-dotenv, google-generativeai, openai, anthropic, duckduckgo-search
 -   **フロントエンド**: HTML5, CSS3, JavaScript, Quill.js, marked.js, Socket.IO
 -   **データベース**: SQLite
--   **外部API**: OpenAI API, Google Generative AI API, Anthropic API
+-   **外部API**: Google Generative AI API (Gemini), OpenAI API, Anthropic API, DuckDuckGo Search (via library)
 
 
 ## ライセンス

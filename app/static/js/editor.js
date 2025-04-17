@@ -7,6 +7,7 @@ let editor;
 let currentDocumentId = null;
 let saveTimeout = null;
 const AUTO_SAVE_DELAY = 2000; // 自動保存の遅延時間（ミリ秒）
+const EDITOR_FONT_SIZE_KEY = 'editorFontSizePreference'; // LocalStorageキー
 
 // DOMが読み込まれた後に実行
 document.addEventListener('DOMContentLoaded', function() {
@@ -16,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // エディタ初期化
         initEditor();
         setupDocumentEvents();
+        setupFontSizeSelector(); // ★ フォントサイズセレクタ設定を追加
         
         // 最近のドキュメント一覧を読み込む
         loadRecentDocuments();
@@ -43,6 +45,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadLatestDocumentOrShowEmpty();
             }
         }
+
+        // setupPanelToggles(); // ★ 削除: main.jsで呼び出すため
     } catch (error) {
         console.error('ページ初期化中にエラーが発生しました:', error);
         // 重大なエラーの場合、ユーザーに通知
@@ -74,11 +78,39 @@ function initEditor() {
     editor = new Quill('#editor-container', {
         modules: {
             toolbar: toolbarOptions,
-            clipboard: { /* 前回の clipboard 設定は一旦削除 or コメントアウト */ }
+            clipboard: { /* 前回の clipboard 設定は一旦削除 or コメントアウト */ },
+            keyboard: {
+                bindings: {
+                    // キーボード操作時にスクロールを改善するカスタムバインディング
+                    moveDown: {
+                        key: 'down',
+                        handler: function(range, context) {
+                            // 標準のダウンキー操作を実行
+                            this.quill.selection.transformPosition(range.index, 1);
+                            // エディタコンテナが見えるようにスクロール
+                            ensureEditorVisibility();
+                            return false;
+                        }
+                    },
+                    moveUp: {
+                        key: 'up',
+                        handler: function(range, context) {
+                            // 標準のアップキー操作を実行
+                            this.quill.selection.transformPosition(range.index, -1);
+                            // エディタコンテナが見えるようにスクロール
+                            ensureEditorVisibility();
+                            return false;
+                        }
+                    }
+                }
+            }
         },
         placeholder: 'ここに内容を入力してください...',
         theme: 'snow'
     });
+    
+    // ★ 初期フォントサイズを適用
+    applyEditorFontSize(getSavedFontSize()); 
     
     // --- ここから「AIチャットに追加」ボタンの動的生成 --- 
     let addToChatBtn = null; // ボタン要素の参照を保持する変数
@@ -166,6 +198,11 @@ function initEditor() {
             } else {
                  console.warn("動的に生成されたボタンの参照が見つかりません (selection-change)");
             }
+            
+            // カーソル位置が変わったらビジビリティを確保
+            if (range) {
+                ensureEditorVisibility();
+            }
         });
         
         // 「AIチャットに追加」ボタンのクリックイベントリスナーは既に上で設定済み
@@ -173,6 +210,15 @@ function initEditor() {
         // if (buttonElementForListener) { ... } // 不要
 
     }, 100); // 100ミリ秒後に実行
+    
+    // スクロール時にも対応
+    const editorContainer = document.getElementById('editor-container');
+    if (editorContainer) {
+        editorContainer.addEventListener('scroll', function() {
+            // スクロール位置を監視して必要に応じて調整
+            ensureToolbarVisibility();
+        });
+    }
 }
 
 /**
@@ -574,6 +620,102 @@ function loadLatestDocumentOrShowEmpty() {
         });
 }
 
+// ★ 新しい関数: フォントサイズセレクタのイベント設定
+function setupFontSizeSelector() {
+    const fontSizeSelect = document.getElementById('editor-font-size');
+    if (!fontSizeSelect) return;
+
+    // 保存された設定をドロップダウンに反映
+    fontSizeSelect.value = getSavedFontSize();
+
+    fontSizeSelect.addEventListener('change', function() {
+        const newSize = this.value; // "100", "75", "50"
+        applyEditorFontSize(newSize);
+        saveFontSizePreference(newSize);
+    });
+}
+
+// ★ 新しい関数: 保存されたフォントサイズ設定を取得
+function getSavedFontSize() {
+    return localStorage.getItem(EDITOR_FONT_SIZE_KEY) || '100'; // デフォルトは100%
+}
+
+// ★ 新しい関数: フォントサイズ設定をローカルストレージに保存
+function saveFontSizePreference(size) {
+    localStorage.setItem(EDITOR_FONT_SIZE_KEY, size);
+}
+
+// ★ 新しい関数: エディタにフォントサイズクラスを適用
+function applyEditorFontSize(size) {
+    const editorElement = editor.container.querySelector('.ql-editor');
+    if (!editorElement) return;
+
+    // ★ 管理する可能性のあるクラス名のリスト
+    const sizeClasses = [
+        'font-size-50', 'font-size-60', 'font-size-70', 'font-size-75', // 75も念のため残す
+        'font-size-80', 'font-size-90', 'font-size-110', 'font-size-120',
+        'font-size-130', 'font-size-140', 'font-size-150'
+    ];
+
+    // 既存のサイズクラスをすべて削除
+    editorElement.classList.remove(...sizeClasses);
+
+    // 新しいサイズに対応するクラス名を作成 (例: "font-size-80")
+    const newClass = `font-size-${size}`;
+
+    // 100% 以外の場合、かつリストに含まれるクラスの場合にクラスを追加
+    if (size !== '100' && sizeClasses.includes(newClass)) {
+        editorElement.classList.add(newClass);
+    }
+    // size === '100' の場合はクラス不要
+    console.log(`エディタのフォントサイズを ${size}% に変更`);
+}
+
+/**
+ * カーソル位置に応じてエディタをスクロールして可視状態を確保する
+ */
+function ensureEditorVisibility() {
+    const selection = editor.getSelection();
+    if (!selection) return;
+    
+    const editorContainer = document.getElementById('editor-container');
+    if (!editorContainer) return;
+    
+    // カーソル位置のブラウザ座標を取得 
+    const bounds = editor.getBounds(selection.index);
+    
+    // コンテナの表示範囲
+    const containerTop = editorContainer.scrollTop;
+    const containerBottom = containerTop + editorContainer.clientHeight;
+    const boundsPadding = 50; // 余白のピクセル数
+    
+    // カーソルが表示範囲外の場合はスクロール
+    if (bounds.top - boundsPadding < containerTop) {
+        // カーソルが上部に近すぎる場合、上方向にスクロール
+        editorContainer.scrollTop = bounds.top - boundsPadding;
+    } else if (bounds.bottom + boundsPadding > containerBottom) {
+        // カーソルが下部に近すぎる場合、下方向にスクロール
+        editorContainer.scrollTop = bounds.bottom + boundsPadding - editorContainer.clientHeight;
+    }
+    
+    // ツールバーも確実に表示
+    ensureToolbarVisibility();
+}
+
+/**
+ * ツールバーが必ず表示されるようにスクロール位置を調整
+ */
+function ensureToolbarVisibility() {
+    // 必要に応じてスクロール位置を調整してツールバーを表示
+    const editorContainer = document.getElementById('editor-container');
+    const toolbar = document.querySelector('.ql-toolbar');
+    
+    if (!editorContainer || !toolbar) return;
+    
+    // 現在のスクロール位置がツールバーの高さを超えていたら、
+    // ツールバーはsticky属性により表示されるので何もしない
+}
+
 // 他のJSファイルから使用できるようにグローバルに公開
 window.editorAPI = {
     getCurrentDocumentId: function() {
@@ -582,5 +724,72 @@ window.editorAPI = {
     insertTextAtCursor: insertTextAtCursor,
     getEditorContents: function() {
         return editor ? editor.getContents() : null;
+    },
+    ensureEditorVisibility: ensureEditorVisibility
+};
+
+// ★ 新しい関数: サイドバーとチャット欄のトグル機能を設定
+function setupPanelToggles() {
+    const appContainer = document.querySelector('.app-container');
+    const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+    const toggleChatBtn = document.getElementById('toggle-chat-btn');
+    const sidebar = document.querySelector('.sidebar');
+    const chatArea = document.querySelector('.chat-area');
+
+    if (!appContainer || !toggleSidebarBtn || !toggleChatBtn || !sidebar || !chatArea) {
+        console.error('Toggle panel elements not found.');
+        return;
     }
-}; 
+
+    // サイドバートグル
+    toggleSidebarBtn.addEventListener('click', () => {
+        appContainer.classList.toggle('sidebar-hidden');
+        // ボタンのテキスト/タイトルを切り替え
+        const isHidden = appContainer.classList.contains('sidebar-hidden');
+        toggleSidebarBtn.textContent = isHidden ? '▶' : '◀'; // アイコンを切り替え
+        toggleSidebarBtn.title = isHidden ? 'サイドバーを表示' : 'サイドバーを隠す';
+        // ★ レイアウト変更後にエディタのリサイズをトリガーする（Quillの場合）
+        if (window.quill) {
+             // 既存の setTimeout を維持
+             setTimeout(() => window.quill.root.dispatchEvent(new Event('resize')), 310);
+        }
+    });
+
+    // 初期状態でボタンのテキスト/タイトルを設定
+    if (appContainer.classList.contains('sidebar-hidden')) {
+        toggleSidebarBtn.textContent = '▶'; // 初期状態が非表示なら開くアイコン
+        toggleSidebarBtn.title = 'サイドバーを表示';
+    } else {
+         toggleSidebarBtn.textContent = '◀'; // 初期状態が表示なら閉じるアイコン
+         toggleSidebarBtn.title = 'サイドバーを隠す';
+    }
+
+    // チャット欄トグル
+    toggleChatBtn.addEventListener('click', () => {
+        appContainer.classList.toggle('chat-hidden');
+        // ボタンのテキスト/タイトルを切り替え
+        const isHidden = appContainer.classList.contains('chat-hidden');
+        toggleChatBtn.textContent = isHidden ? '◀' : '▶';
+        toggleChatBtn.title = isHidden ? 'チャット欄を表示' : 'チャット欄を隠す';
+         // ★ レイアウト変更後にエディタのリサイズをトリガーする（Quillの場合）
+        if (window.quill) {
+             setTimeout(() => window.quill.root.dispatchEvent(new Event('resize')), 310);
+        }
+        // ★ チャットのリサイズハンドルも連動して表示/非表示
+        const resizeHandle = document.querySelector('.chat-resize-handle');
+        if(resizeHandle) {
+            resizeHandle.style.display = isHidden ? 'none' : 'block';
+        }
+    });
+
+    // 初期状態でボタンのテキスト/タイトルを設定
+    if (appContainer.classList.contains('chat-hidden')) {
+        toggleChatBtn.textContent = '◀'; // 初期アイコンもOK
+        toggleChatBtn.title = 'チャット欄を表示';
+        const resizeHandle = document.querySelector('.chat-resize-handle');
+        if(resizeHandle) resizeHandle.style.display = 'none';
+    } else {
+        toggleChatBtn.textContent = '▶'; // ★ 初期状態が表示の場合のアイコンを追加
+        toggleChatBtn.title = 'チャット欄を隠す'; // ★ 初期状態が表示の場合のタイトルを追加
+    }
+} 
