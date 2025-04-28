@@ -13,6 +13,7 @@ from google.generativeai.types import GenerationConfig, FunctionDeclaration, Too
 from urllib.parse import urlparse # URLパース用に追記
 from io import BytesIO # Base64デコード用
 import base64
+from openai import OpenAI
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
 
@@ -125,6 +126,25 @@ def send_message(doc_id):
                 raise ValueError("Anthropic API Keyが設定されていません。")
             claude_response = get_claude_response(model_name, context, chat_history, user_message, thinking_enabled, chat_context)
             ai_response_data = {"message": claude_response, "sources": []} # sources は空
+        elif model_name.startswith('o3'):
+            if not OPENAI_API_KEY:
+                raise ValueError("OpenAI API Keyが設定されていません。")
+            o3_result = get_openai_o3_response(
+                model_name, context, chat_history, user_message, chat_context
+            )
+
+            # get_openai_o3_response は dict 形式で返す
+            if not o3_result.get("success", False):
+                status_code = o3_result.get("status", 500)
+                return jsonify({
+                    'success': False,
+                    'message': o3_result.get("message", "OpenAI APIエラー"),
+                }), status_code
+
+            ai_response_data = {
+                "message": o3_result.get("message", ""),
+                "sources": []
+            }
         elif model_name.startswith('gpt'):
              if not OPENAI_API_KEY:
                 raise ValueError("OpenAI API Keyが設定されていません。")
@@ -417,48 +437,53 @@ Web検索ツールが利用可能な場合は、最新情報や外部情報が�
     return {"message": final_response_text, "sources": sources}
 
 def get_claude_response(model_name, context, chat_history, user_message, thinking_enabled, chat_context):
-    """Anthropic Claudeモデルを使用して応答を生成 (旧 Completions API 互換)"""
+    """
+    Anthropic Claude 3 / 3.5 / 3.7 系 (Messages API) で応答を生成します。
+    Claude‑2 はサポート対象外とし、Completions API は使用しません。
+    """
     if not ANTHROPIC_API_KEY or not anthropic_client:
         raise ValueError("Anthropic API Keyまたはクライアントが設定されていません。")
 
-    # プロンプトの組み立て (Human/Assistant形式)
-    prompt = f"\n\nHuman: あなたはユーザーのアシスタントです。以下のドキュメントと会話履歴、追加コンテキストを踏まえて応答してください。"
-    prompt += f"\n\n--- ドキュメント --- \n{context}\n--- ドキュメントここまで ---"
-    if chat_context:
-        prompt += f"\n\n--- 追加コンテキスト --- \n{chat_context}\n--- 追加コンテキストここまで ---"
-    
-    prompt += "\n\n--- 会話履歴 ---"
+    # --- Claude Messages 配列の構築 ---
+    messages = []
+
+    # 既存履歴を追加
     for msg in chat_history:
-        if msg.role == 'user':
-            prompt += f"\nHuman: {msg.content}"
-        else: # assistant
-            prompt += f"\nAssistant: {msg.content}"
-    prompt += f"\n--- 会話履歴ここまで ---"
-    
-    # 最新のユーザーメッセージを追加
-    prompt += f"\nHuman: {user_message}\n\nAssistant:"
+        role = "assistant" if msg.role == "assistant" else "user"
+        messages.append({"role": role, "content": msg.content})
 
-    # thinking_enabled は Completions API では直接的なパラメータなし。
-    # 必要であればプロンプト内で指示する。
+    # 最新のユーザーメッセージ
+    messages.append({"role": "user", "content": user_message})
 
-    # Claudeモデルでレスポンスを生成 (Completions API)
-    max_tokens = 1024 # 必要に応じて調整
-    
+    # Claude Messages API では system プロンプトはトップレベル `system` 引数で渡す
+    system_prompt = (
+        "You are a helpful, knowledgeable assistant. "
+        "Use the provided document, conversation history and any additional context to answer the user."
+    )
+    if chat_context:
+        system_prompt += f"\n\n[追加コンテキスト]\n{chat_context}"
+
+    # --- Claude Messages API 呼び出し ---
     try:
-        completion = anthropic_client.completions.create(
-            model=model_name,
-            prompt=prompt,
-            max_tokens_to_sample=max_tokens,
+        result = anthropic_client.messages.create(
+            model=model_name,        # 例: claude-3-7-sonnet-20250219
+            max_tokens=1024,
+            system=system_prompt,
+            messages=messages
         )
-        return completion.completion
+
+        # result.content は list[ContentBlock]. Text を取り出して連結
+        output_chunks = []
+        for blk in result.content:
+            if isinstance(blk, str):
+                output_chunks.append(blk)
+            elif hasattr(blk, "text"):
+                output_chunks.append(blk.text)
+        return "".join(output_chunks).strip()
+
     except Exception as e:
-        print(f"Claude API (Completions) 呼び出しエラー: {e}", file=sys.stderr)
-        error_message = f"Claude API呼び出し中にエラーが発生しました: {type(e).__name__}"
-        if hasattr(e, 'response') and hasattr(e.response, 'text'): 
-             error_message += f" - {e.response.text[:200]}"
-        elif hasattr(e, 'message'):
-             error_message += f" - {e.message}"
-        raise RuntimeError(error_message)
+        print(f"Claude Messages API エラー: {e}", file=sys.stderr)
+        raise RuntimeError(f"Claude API呼び出し中にエラーが発生しました: {type(e).__name__}")
 
 def get_openai_response(model_name, context, chat_history, user_message, chat_context):
     """OpenAI GPTモデルを使用して応答を生成"""
@@ -503,10 +528,56 @@ def get_openai_response(model_name, context, chat_history, user_message, chat_co
         "content": user_message
     })
     
-    # GPTモデルでレスポンスを生成
-    response = openai.ChatCompletion.create(
-        model=model_name,
+    # --- OpenAI 新SDK (>=1.14) での呼び出し ---
+    from openai import OpenAI   # 関数内 import（循環回避）
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    response = client.chat.completions.create(
+        model=model_name,         # 例: gpt-4o, gpt-4o-mini, gpt-4.5-turbo 等
         messages=messages
     )
-    
-    return response.choices[0].message.content 
+    return response.choices[0].message.content
+
+
+def get_openai_o3_response(model_name, context, chat_history, user_message, chat_context):
+    """OpenAI o3 系モデル (Responses API) で応答を生成し、成功/失敗を dict で返す"""
+
+    from openai import APIStatusError, APIConnectionError
+
+    if not os.getenv("OPENAI_API_KEY"):
+        raise RuntimeError("環境変数 OPENAI_API_KEY が設定されていません。")
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    # --- 会話履歴を1本の文字列にまとめる ---
+    history_text = ""
+    for m in chat_history:
+        role = "ユーザー" if m.role == "user" else "AI"
+        history_text += f"{role}: {m.content}\n"
+
+    # --- system プロンプト ---
+    system_prompt = (
+        "あなたはユーザーの壁打ち相手です。\n"
+        "--- ドキュメント ---\n"
+        f"{context}\n"
+        "--- ドキュメントここまで ---\n"
+    )
+    if chat_context:
+        system_prompt += f"\n--- 追加コンテキスト ---\n{chat_context}\n--- ここまで ---"
+
+    # --- input ---
+    input_text = history_text + f"ユーザー: {user_message}"
+
+    try:
+        # o3 の Responses API 呼び出し
+        rsp = client.responses.create(
+            model=model_name,
+            instructions=system_prompt,
+            input=input_text
+        )
+        return {"success": True, "message": rsp.output_text}
+    except (APIStatusError, APIConnectionError) as e:
+        # OpenAI 側エラーを呼び出し元に伝える
+        return {
+            "success": False,
+            "status": getattr(e, "status_code", 500),
+            "message": f"OpenAI APIエラー: {getattr(e, 'message', str(e))}",
+        }
