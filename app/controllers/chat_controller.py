@@ -1,5 +1,10 @@
 from flask import Blueprint, request, jsonify
-from app.models.database import db, Document, ChatMessage
+from app.models.database import (
+    get_document as supa_get_document,
+    get_chat_messages as supa_get_chat_messages,
+    create_chat_message as supa_create_chat_message,
+    delete_chat_messages as supa_delete_chat_messages,
+)
 import os
 import json
 import sys
@@ -59,31 +64,37 @@ search_tool = Tool(function_declarations=[web_search_func])
 def reset_chat_history(doc_id):
     """指定されたドキュメントIDに関連するチャット履歴を削除"""
     try:
-        # ドキュメントが存在するか確認（任意）
-        document = Document.query.get_or_404(doc_id)
-        
-        # 該当ドキュメントIDのチャットメッセージを全て削除
-        num_deleted = ChatMessage.query.filter_by(document_id=doc_id).delete()
-        db.session.commit()
+        # ドキュメント存在チェック
+        document = supa_get_document(doc_id)
+        if not document:
+            return jsonify({'success': False, 'message': 'Document not found'}), 404
+
+        # Supabaseでチャットメッセージを削除
+        num_deleted = supa_delete_chat_messages(doc_id)
         
         print(f"ドキュメントID {doc_id} のチャット履歴を {num_deleted} 件削除しました。")
         return jsonify({'success': True, 'message': 'チャット履歴がリセットされました。'}), 200
     except Exception as e:
-        db.session.rollback() # エラー発生時はロールバック
         print(f"チャット履歴のリセット中にエラーが発生しました: {str(e)}", file=sys.stderr)
         return jsonify({'success': False, 'message': 'チャット履歴のリセットに失敗しました。'}), 500
 
 @chat_bp.route('/history/<int:doc_id>', methods=['GET'])
 def get_chat_history(doc_id):
     """指定されたドキュメントIDに関連するチャット履歴を取得"""
-    document = Document.query.get_or_404(doc_id)
-    chat_messages = ChatMessage.query.filter_by(document_id=doc_id).order_by(ChatMessage.timestamp).all()
-    return jsonify([msg.to_dict() for msg in chat_messages])
+    document = supa_get_document(doc_id)
+    if not document:
+        return jsonify({'success': False, 'message': 'Document not found'}), 404
+
+    chat_messages = supa_get_chat_messages(doc_id) or []
+    return jsonify(chat_messages)
 
 @chat_bp.route('/send/<int:doc_id>', methods=['POST'])
 def send_message(doc_id):
     """ユーザーメッセージを保存し、AIからの応答を取得して保存"""
-    document = Document.query.get_or_404(doc_id)
+    document = supa_get_document(doc_id)
+    if not document:
+        return jsonify({'success': False, 'message': 'Document not found'}), 404
+
     data = request.get_json()
     
     user_message = data.get('message', '')
@@ -98,19 +109,18 @@ def send_message(doc_id):
     if image_data_base64 and ',' in image_data_base64:
         image_data_base64 = image_data_base64.split(',', 1)[1]
 
-    # ユーザーメッセージ保存 (画像情報は保存しない)
-    user_chat = ChatMessage(
+    # Supabaseにユーザーメッセージを保存
+    supa_create_chat_message(
         document_id=doc_id,
         role='user',
         content=user_message,
         model_used=model_name,
         thinking_enabled=thinking_enabled,
     )
-    db.session.add(user_chat)
 
     # チャット履歴を取得 (画像情報は含まれない)
-    chat_history = ChatMessage.query.filter_by(document_id=doc_id).order_by(ChatMessage.timestamp).all()
-    context = document.content
+    chat_history = supa_get_chat_messages(doc_id) or []
+    context = document.get('content', '')
 
     ai_response_data = {}
     try:
@@ -154,29 +164,18 @@ def send_message(doc_id):
             ai_response_data = {"message": "エラー: サポートされていないモデル...", "sources": []}
 
     except Exception as e:
-        db.session.rollback() # エラー時はユーザーメッセージの保存もロールバック
         print(f"AI応答エラー: {str(e)}", file=sys.stderr)
         # エラーレスポンスを返す前に処理を終了
         return jsonify({'success': False, 'message': f"AI応答取得エラー: {str(e)}"}), 500
 
-    # AI応答をデータベースに保存 (message のみ保存)
-    ai_chat = ChatMessage(
+    # SupabaseにAI応答を保存
+    supa_create_chat_message(
         document_id=doc_id,
         role='assistant',
-        content=ai_response_data.get("message", ""), # メッセージ本文を保存
+        content=ai_response_data.get("message", ""),
         model_used=model_name,
-        thinking_enabled=thinking_enabled
+        thinking_enabled=thinking_enabled,
     )
-    db.session.add(ai_chat)
-
-    # ユーザーメッセージとAI応答をまとめてコミット
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        print(f"データベースへの保存中にエラー: {e}", file=sys.stderr)
-        # ここでもエラーレスポンスを返す方が親切
-        return jsonify({'success': False, 'message': 'データベースへの保存に失敗しました。'}), 500
 
     ai_message = ai_response_data.get("message", "")
     # ★ 応答の先頭が "ny" であれば削除する処理を追加
@@ -291,13 +290,13 @@ Web検索ツールが利用可能な場合は、最新情報や外部情報が�
 
     # 既存履歴を追加 (テキストのみ)
     for msg in chat_history:
-        role = "model" if msg.role == 'assistant' else msg.role
-        if msg.content == system_instruction_content or msg.content == "承知しました。":
+        role = "model" if msg['role'] == 'assistant' else msg['role']
+        if msg['content'] == system_instruction_content or msg['content'] == "承知しました。":
             continue
         # テキストのみのパーツを作成
         msg_parts = []
-        if msg.content:
-            msg_parts.append(msg.content)
+        if msg['content']:
+            msg_parts.append(msg['content'])
         
         if msg_parts:
             gemini_history.append({"role": role, "parts": msg_parts})
@@ -449,8 +448,8 @@ def get_claude_response(model_name, context, chat_history, user_message, thinkin
 
     # 既存履歴を追加
     for msg in chat_history:
-        role = "assistant" if msg.role == "assistant" else "user"
-        messages.append({"role": role, "content": msg.content})
+        role = "assistant" if msg['role'] == "assistant" else "user"
+        messages.append({"role": role, "content": msg['content']})
 
     # 最新のユーザーメッセージ
     messages.append({"role": "user", "content": user_message})
@@ -518,8 +517,8 @@ def get_openai_response(model_name, context, chat_history, user_message, chat_co
     # すべての会話履歴を追加
     for msg in chat_history:  # すべてのメッセージを使用（制限なし）
         messages.append({
-            "role": msg.role,
-            "content": msg.content
+            "role": msg['role'],
+            "content": msg['content']
         })
     
     # 新しいユーザーメッセージを追加
@@ -550,8 +549,8 @@ def get_openai_o3_response(model_name, context, chat_history, user_message, chat
     # --- 会話履歴を1本の文字列にまとめる ---
     history_text = ""
     for m in chat_history:
-        role = "ユーザー" if m.role == "user" else "AI"
-        history_text += f"{role}: {m.content}\n"
+        role = "ユーザー" if m['role'] == "user" else "AI"
+        history_text += f"{role}: {m['content']}\n"
 
     # --- system プロンプト ---
     system_prompt = (

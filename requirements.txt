@@ -14,6 +14,9 @@ duckduckgo-search>=6.0.0,<7.0.0 # 最新のメジャーバージョンを指定
 
 # Database
 SQLAlchemy>=2.0,<3.0 # Flask-SQLAlchemy 3.0 が依存
+# Supabase Python Client & Postgres driver
+supabase>=2.0,<3.0  # Supabase公式Pythonクライアント
+psycopg2-binary>=2.9,<3.0  # Postgres接続用ドライバ（SQLAlchemy互換）
 
 # Utilities
 python-dotenv>=1.0,<2.0
