@@ -6,8 +6,8 @@ Werkzeug>=3.0,<4.0 # Flask 2.3 が依存
 
 # AI Models
 google-generativeai>=0.8.4,<0.9.0 # Function Calling 対応バージョン
-openai>=0.27,<1.0 # バージョン指定を少し緩めに
-anthropic>=0.18.0,<0.19.0 # ★ 新しいhttpxに対応したバージョンに変更
+openai>=1.76.0,<2.0  # 最新安定版（2025‑04‑23公開）
+anthropic>=0.50.0,<1.0  # 最新版。httpx>=0.25,<1 を要求
 
 # Web Search
 duckduckgo-search>=6.0.0,<7.0.0 # 最新のメジャーバージョンを指定
@@ -19,7 +19,7 @@ SQLAlchemy>=2.0,<3.0 # Flask-SQLAlchemy 3.0 が依存
 python-dotenv>=1.0,<2.0
 requests>=2.32,<3.0 # google-api-core が依存
 urllib3>=1.26,<2.0 # requests が依存
-httpx>=0.25.0,<0.26.0 # ★ anthropic 0.18.1 との互換性のため一時的にダウングレード
+httpx>=0.25,<1.0  # openai/anthropic 両対応レンジ
 pydub>=0.25.0,<0.26.0 # 音声処理用に追加
 
 # SocketIO Server (Optional but recommended for production)

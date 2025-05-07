@@ -65,4 +65,4 @@ def settings():
 if __name__ == '__main__':
     # デバッグモードでサーバー起動
     print("アプリケーションを起動します...")
-    socketio.run(app, debug=True) 
+    socketio.run(app, debug=True, port=5001) 
