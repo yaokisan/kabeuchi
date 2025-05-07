@@ -5,7 +5,6 @@ import os
 from app.models.database import db, init_db
 from app.controllers.document_controller import document_bp
 from app.controllers.chat_controller import chat_bp
-from app.controllers.speech_controller import speech_bp, handle_speech_recognition
 from app.controllers.settings_controller import settings_bp
 from app.controllers.auth_controller import auth_bp
 
@@ -42,14 +41,9 @@ socketio = SocketIO(app,
 
 print("SocketIOを初期化しました")
 
-# 音声認識ハンドラの接続
-handle_speech_recognition(socketio)
-print("音声認識ハンドラを登録しました")
-
 # 各種ブループリントの登録
 app.register_blueprint(document_bp)
 app.register_blueprint(chat_bp)
-app.register_blueprint(speech_bp)
 app.register_blueprint(settings_bp)
 app.register_blueprint(auth_bp)
 
