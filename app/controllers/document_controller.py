@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 # Supabase 用ヘルパー関数をインポート
 from app.models.database import (
     get_documents as supa_get_documents,
@@ -7,6 +7,7 @@ from app.models.database import (
     update_document as supa_update_document,
     delete_document as supa_delete_document,
 )
+from app.controllers.auth_controller import require_auth
 
 document_bp = Blueprint('document', __name__, url_prefix='/api/document')
 
@@ -31,13 +32,14 @@ def get_document(doc_id):
     return jsonify(document)
 
 @document_bp.route('/create', methods=['POST'])
+@require_auth
 def create_document():
     """新規ドキュメントを作成 (Supabase)"""
     data = request.get_json()
     title = data.get('title', '無題のドキュメント')
     content = data.get('content', '')
     
-    new_doc = supa_create_document(title, content)
+    new_doc = supa_create_document(title, content, user_id=g.current_user)
     if not new_doc:
         return jsonify({"error": "Failed to create document"}), 500
     return jsonify(new_doc), 201

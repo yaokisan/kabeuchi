@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- Socket.IO -->
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <!-- Auth token helper -->
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
     <style>
         /* 画像プレビュー用の簡単なスタイル */
         #image-preview-container {
@@ -74,6 +76,8 @@
                 <a href="{{ url_for('index') }}" class="app-title-link">
                     <h2>KabeUchi</h2>
                 </a>
+                <span id="user-email" style="font-size:12px;color:var(--text-light);"></span>
+                <button onclick="logout()" class="secondary-btn" style="margin-left:8px;">ログアウト</button>
                 <!-- ▼▼▼ サイドバー非表示ボタン (ヘッダーへ移動) ▼▼▼ -->
                 <button id="toggle-sidebar-btn" class="toggle-panel-btn" title="サイドバーを隠す">◀</button>
                 <!-- ▲▲▲ サイドバー非表示ボタン ▲▲▲ -->

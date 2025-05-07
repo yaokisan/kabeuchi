@@ -26,13 +26,17 @@ def get_document(doc_id):
     data = response.data or []
     return data[0] if data else None
   
-def create_document(title, content):  
-    supabase = get_supabase()  
-    response = supabase.table('documents').insert({  
-        'title': title,  
-        'content': content  
-    }).execute()  
-    return response.data[0]  
+def create_document(title, content, user_id=None):
+    """ドキュメントを作成し、作成後の行を返す"""
+    supabase = get_supabase()
+    data = {
+        'title': title,
+        'content': content,
+    }
+    if user_id:
+        data['user_id'] = user_id
+    response = supabase.table('documents').insert(data).execute()
+    return response.data[0]
   
 def update_document(doc_id, data):  
     supabase = get_supabase()  
@@ -52,16 +56,19 @@ def get_chat_messages(doc_id):
         return []
     return response.data or []
   
-def create_chat_message(document_id, role, content, model_used=None, thinking_enabled=False):  
-    supabase = get_supabase()  
-    response = supabase.table('chat_messages').insert({  
-        'document_id': document_id,  
-        'role': role,  
-        'content': content,  
-        'model_used': model_used,  
-        'thinking_enabled': thinking_enabled  
-    }).execute()  
-    return response.data[0]  
+def create_chat_message(document_id, role, content, model_used=None, thinking_enabled=False, user_id=None):
+    supabase = get_supabase()
+    data = {
+        'document_id': document_id,
+        'role': role,
+        'content': content,
+        'model_used': model_used,
+        'thinking_enabled': thinking_enabled,
+    }
+    if user_id:
+        data['user_id'] = user_id
+    response = supabase.table('chat_messages').insert(data).execute()
+    return response.data[0]
   
 # 指定ドキュメントIDのチャットメッセージを全削除
 def delete_chat_messages(document_id):
