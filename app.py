@@ -7,6 +7,7 @@ from app.controllers.document_controller import document_bp
 from app.controllers.chat_controller import chat_bp
 from app.controllers.speech_controller import speech_bp, handle_speech_recognition
 from app.controllers.settings_controller import settings_bp
+from app.controllers.auth_controller import auth_bp
 
 # 環境変数の読み込み
 load_dotenv()
@@ -46,6 +47,7 @@ app.register_blueprint(document_bp)
 app.register_blueprint(chat_bp)
 app.register_blueprint(speech_bp)
 app.register_blueprint(settings_bp)
+app.register_blueprint(auth_bp)
 
 @app.route('/')
 def index():
@@ -61,6 +63,14 @@ def manage_documents():
 def settings():
     """設定ページを表示"""
     return render_template('settings.html')
+
+# ---------- 認証関連 ---------- #
+# ローカル HTML ログインページ（Google ボタンを表示）
+
+@app.route('/login')
+def login_page():
+    """トークン未保持時に表示されるシンプルなログインページ"""
+    return render_template('login.html')
 
 if __name__ == '__main__':
     # デバッグモードでサーバー起動

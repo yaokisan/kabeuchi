@@ -24,6 +24,7 @@ requests>=2.32,<3.0 # google-api-core が依存
 urllib3>=1.26,<2.0 # requests が依存
 httpx>=0.25,<1.0  # openai/anthropic 両対応レンジ
 pydub>=0.25.0,<0.26.0 # 音声処理用に追加
+PyJWT>=2.7,<3.0  # Supabase JWT 検証用
 
 # SocketIO Server (Optional but recommended for production)
 # eventlet or gevent

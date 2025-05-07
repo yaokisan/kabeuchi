@@ -60,7 +60,10 @@ web_search_func = FunctionDeclaration(
 search_tool = Tool(function_declarations=[web_search_func])
 # --- Gemini用 Web検索ツールの定義 --- END ---
 
+from app.controllers.auth_controller import require_auth
+
 @chat_bp.route('/reset/<int:doc_id>', methods=['POST'])
+@require_auth
 def reset_chat_history(doc_id):
     """指定されたドキュメントIDに関連するチャット履歴を削除"""
     try:
@@ -79,6 +82,7 @@ def reset_chat_history(doc_id):
         return jsonify({'success': False, 'message': 'チャット履歴のリセットに失敗しました。'}), 500
 
 @chat_bp.route('/history/<int:doc_id>', methods=['GET'])
+@require_auth
 def get_chat_history(doc_id):
     """指定されたドキュメントIDに関連するチャット履歴を取得"""
     document = supa_get_document(doc_id)
@@ -89,6 +93,7 @@ def get_chat_history(doc_id):
     return jsonify(chat_messages)
 
 @chat_bp.route('/send/<int:doc_id>', methods=['POST'])
+@require_auth
 def send_message(doc_id):
     """ユーザーメッセージを保存し、AIからの応答を取得して保存"""
     document = supa_get_document(doc_id)
@@ -116,6 +121,7 @@ def send_message(doc_id):
         content=user_message,
         model_used=model_name,
         thinking_enabled=thinking_enabled,
+        user_id=g.current_user,
     )
 
     # チャット履歴を取得 (画像情報は含まれない)
@@ -175,6 +181,7 @@ def send_message(doc_id):
         content=ai_response_data.get("message", ""),
         model_used=model_name,
         thinking_enabled=thinking_enabled,
+        user_id=g.current_user,
     )
 
     ai_message = ai_response_data.get("message", "")
