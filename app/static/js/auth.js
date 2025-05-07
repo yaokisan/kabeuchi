@@ -31,4 +31,32 @@
     options.headers = Object.assign({ 'Authorization': `Bearer ${token}`}, options.headers||{});
     return fetch(url, options);
   };
+
+  // ----------------- 追加: ログアウト処理 -----------------
+  window.logout = function(){
+    // ローカルストレージのトークンを削除
+    localStorage.removeItem('access_token');
+    // サーバ側のセッションを明示的に終了（失敗しても無視）
+    fetch('/auth/signout', {method:'POST'}).finally(()=>{
+      location.href = '/login';
+    });
+  };
+
+  // ----------------- 追加: ユーザメール表示 -----------------
+  function currentEmail(){
+    const t = localStorage.getItem('access_token');
+    if(!t) return null;
+    try{
+      const payload = JSON.parse(atob(t.split('.')[1]));
+      return payload.email || null;
+    }catch{ return null; }
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const emailSpan = document.getElementById('user-email');
+    if(emailSpan){
+       const mail = currentEmail();
+       if(mail) emailSpan.textContent = mail;
+    }
+  });
 })(); 

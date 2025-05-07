@@ -55,4 +55,11 @@ def require_auth(fn):
         except jwt.PyJWTError:
             return jsonify({'success': False, 'message': 'Token invalid'}), 401
         return fn(*args, **kwargs)
-    return wrapper 
+    return wrapper
+
+# ------------ 明示的サインアウト ------------ #
+
+@auth_bp.route('/signout', methods=['POST'])
+def signout():
+    """フロントがトークンを破棄したあと呼ばれる。現在は何もせず204"""
+    return '', 204 
