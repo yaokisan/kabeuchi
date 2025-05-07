@@ -18,7 +18,11 @@ app = Flask(__name__,
             static_folder='app/static')
             
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SUPABASE_DB_URL')
+# Supabase への直接接続 URI（例: postgres://...）が無い場合、
+# SQLAlchemy を実際には使わないが拡張の初期化だけを行うために
+# インメモリ SQLite をフォールバックとして設定する。
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SUPABASE_DB_URL', 'sqlite:///:memory:')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # データベースの初期化
