@@ -30,3 +30,4 @@ Thumbs.db
 
 # gpt連携用（個人用）
 gpt_integration/
+.vercel

@@ -12,18 +12,21 @@ from app.controllers.auth_controller import require_auth
 document_bp = Blueprint('document', __name__, url_prefix='/api/document')
 
 @document_bp.route('/list', methods=['GET'])
+@require_auth
 def list_documents():
     """全てのドキュメントをJSON形式で返す (Supabase)"""
     documents = supa_get_documents() or []
     return jsonify(documents)
 
 @document_bp.route('/recent', methods=['GET'])
+@require_auth
 def get_recent_documents():
     """最近更新された10件のドキュメントをJSON形式で返す (Supabase)"""
     recent_docs = (supa_get_documents() or [])[:10]
     return jsonify(recent_docs)
 
 @document_bp.route('/<int:doc_id>', methods=['GET'])
+@require_auth
 def get_document(doc_id):
     """指定されたIDのドキュメントを取得 (Supabase)"""
     document = supa_get_document(doc_id)

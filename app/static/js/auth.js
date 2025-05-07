@@ -25,12 +25,32 @@
   saveTokenFromHash();
   ensureToken();
 
-  // fetch ラッパー
+  // fetch ラッパー (明示的に呼ぶ場合)
   window.apiFetch = function(url, options={}){
     const token = localStorage.getItem('access_token');
     options.headers = Object.assign({ 'Authorization': `Bearer ${token}`}, options.headers||{});
     return fetch(url, options);
   };
+
+  // ----------------- NEW: 全 fetch にトークンを付与するグローバルパッチ -----------------
+  (function(){
+    const originalFetch = window.fetch;
+    window.fetch = function(input, init={}){
+      const token = localStorage.getItem('access_token');
+      if(token){
+        if(!init) init = {};
+        // headers が Headers インスタンスかプレーンオブジェクトかを判定
+        if(init.headers instanceof Headers){
+          if(!init.headers.has('Authorization')){
+            init.headers.set('Authorization', `Bearer ${token}`);
+          }
+        } else {
+          init.headers = Object.assign({ 'Authorization': `Bearer ${token}` }, init.headers || {});
+        }
+      }
+      return originalFetch(input, init);
+    };
+  })();
 
   // ----------------- 追加: ログアウト処理 -----------------
   window.logout = function(){
@@ -43,20 +63,29 @@
   };
 
   // ----------------- 追加: ユーザメール表示 -----------------
-  function currentEmail(){
-    const t = localStorage.getItem('access_token');
-    if(!t) return null;
+  function parseJwtPayload(token){
     try{
-      const payload = JSON.parse(atob(t.split('.')[1]));
-      return payload.email || null;
+      const base64Url = token.split('.')[1];
+      let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      // 末尾のパディングを調整
+      while(base64.length % 4 !== 0){ base64 += '='; }
+      return JSON.parse(atob(base64));
     }catch{ return null; }
   }
 
+  function currentEmail(){
+    const t = localStorage.getItem('access_token');
+    if(!t) return null;
+    const payload = parseJwtPayload(t);
+    if(!payload) return null;
+    if(payload.email) return payload.email;
+    if(payload.user_metadata && payload.user_metadata.email) return payload.user_metadata.email;
+    return null;
+  }
+
   document.addEventListener('DOMContentLoaded', ()=>{
-    const emailSpan = document.getElementById('user-email');
-    if(emailSpan){
-       const mail = currentEmail();
-       if(mail) emailSpan.textContent = mail;
-    }
+    const mail = currentEmail();
+    if(!mail) return;
+    document.querySelectorAll('.user-email').forEach(el=>{el.textContent = mail;});
   });
 })(); 

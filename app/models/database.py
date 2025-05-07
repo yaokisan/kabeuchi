@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime  
 import json  
 from app.models.supabase_client import get_supabase  
+from flask import g, has_request_context
   
 # SQLAlchemyインスタンスの初期化（互換性のため維持）  
 db = SQLAlchemy()  
@@ -11,14 +12,21 @@ def init_db():
     db.create_all()  
   
 # Supabaseの機能を使用するヘルパー関数  
+def _supabase():
+    supabase = get_supabase()
+    # リクエストコンテキスト内かつ jwt_token があればセッションを上書き
+    if has_request_context() and hasattr(g, 'jwt_token'):
+        supabase.postgrest.auth(g.jwt_token)
+    return supabase
+
 def get_documents():  
-    supabase = get_supabase()  
+    supabase = _supabase()  
     response = supabase.table('documents').select('*').order('updated_at', desc=True).execute()  
     return response.data  
   
 def get_document(doc_id):
     """ID で 1 件取得。存在しなければ None を返す。"""
-    supabase = get_supabase()
+    supabase = _supabase()
     response = supabase.table('documents').select('*').eq('id', doc_id).execute()
     if getattr(response, 'error', None):
         # エラー内容をログなどで参照したい場合は呼び出し側で response.error を参照
@@ -28,7 +36,7 @@ def get_document(doc_id):
   
 def create_document(title, content, user_id=None):
     """ドキュメントを作成し、作成後の行を返す"""
-    supabase = get_supabase()
+    supabase = _supabase()
     data = {
         'title': title,
         'content': content,
@@ -39,25 +47,25 @@ def create_document(title, content, user_id=None):
     return response.data[0]
   
 def update_document(doc_id, data):  
-    supabase = get_supabase()  
+    supabase = _supabase()  
     response = supabase.table('documents').update(data).eq('id', doc_id).execute()  
     return response.data[0]  
   
 def delete_document(doc_id):  
-    supabase = get_supabase()  
+    supabase = _supabase()  
     response = supabase.table('documents').delete().eq('id', doc_id).execute()  
     return response.data  
   
 def get_chat_messages(doc_id):
     """指定ドキュメントのチャット履歴（昇順）。存在しなくても空配列を返す。"""
-    supabase = get_supabase()
+    supabase = _supabase()
     response = supabase.table('chat_messages').select('*').eq('document_id', doc_id).order('timestamp').execute()
     if getattr(response, 'error', None):
         return []
     return response.data or []
   
 def create_chat_message(document_id, role, content, model_used=None, thinking_enabled=False, user_id=None):
-    supabase = get_supabase()
+    supabase = _supabase()
     data = {
         'document_id': document_id,
         'role': role,
@@ -73,7 +81,7 @@ def create_chat_message(document_id, role, content, model_used=None, thinking_en
 # 指定ドキュメントIDのチャットメッセージを全削除
 def delete_chat_messages(document_id):
     """指定ドキュメントIDに紐づくチャットメッセージを削除して削除件数を返す"""
-    supabase = get_supabase()
+    supabase = _supabase()
     response = supabase.table('chat_messages').delete().eq('document_id', document_id).execute()
     # Supabase からは削除した行データが返るので、その件数を返す
     return len(response.data or [])
