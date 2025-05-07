@@ -8,12 +8,27 @@ SUPA_URL = os.getenv('SUPABASE_URL')
 JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET')
 
 # ---------- Google OAuth flow via Supabase ---------- #
-REDIRECT_URL = os.getenv('SUPABASE_REDIRECT', 'http://localhost:5001/auth/callback')
+
+# Supabase へ渡す Google OAuth コールバック先
+# 1) 環境変数 SUPABASE_REDIRECT があればそれを優先
+# 2) なければリクエスト URL から動的に生成 (ポートやホストを自動追従)
+
+def _build_redirect_url():
+    env_url = os.getenv('SUPABASE_REDIRECT')
+    if env_url:
+        return env_url
+    # request.host_url は trailing slash を含む
+    from flask import request as _req  # 循環防止のため関数内 import
+    return _req.host_url.rstrip('/') + '/auth/callback'
 
 @auth_bp.route('/login')
 def login():
     """Supabase の authorize エンドポイントへリダイレクト"""
-    url = f"{SUPA_URL}/auth/v1/authorize?provider=google&redirect_to={REDIRECT_URL}"
+    url = (
+        f"{SUPA_URL}/auth/v1/authorize?provider=google"
+        f"&redirect_to={_build_redirect_url()}"
+        f"&prompt=select_account"
+    )
     return redirect(url)
 
 @auth_bp.route('/callback')
@@ -49,10 +64,17 @@ def require_auth(fn):
         if not auth_header.startswith('Bearer '):
             return jsonify({'success': False, 'message': 'Unauthorized'}), 401
         token = auth_header.split()[1]
+        # デバッグ: 先頭数文字だけ表示して漏洩防止
+        if os.getenv('DEBUG_AUTH', 'false').lower() == 'true':
+            print('[AUTH] Header token (trunc):', token[:20] + '...')
+            print('[AUTH] JWT_SECRET (trunc):', (JWT_SECRET or '')[:8] + '...')
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'], audience='authenticated')
             g.current_user = payload['sub']  # Supabase UID
-        except jwt.PyJWTError:
+            g.jwt_token = token
+        except jwt.PyJWTError as e:
+            if os.getenv('DEBUG_AUTH', 'false').lower() == 'true':
+                print('[AUTH] Decode error:', e)
             return jsonify({'success': False, 'message': 'Token invalid'}), 401
         return fn(*args, **kwargs)
     return wrapper
