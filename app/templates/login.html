@@ -24,6 +24,10 @@
         <div id="login-error"></div>
     </div>
     <script>
+      // すでにログイン済み（access_token が保存済み）の場合はトップへ戻す
+      if (localStorage.getItem('access_token')) {
+        window.location.replace('/');
+      }
       // ハッシュに error があれば表示
       const hash = location.hash.substring(1);
       if(hash.includes('error=')){
