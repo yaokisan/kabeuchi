@@ -1,155 +1,175 @@
-# KabeUchi - 思考の壁打ちアプリ
+# KabeUchi - 思考の壁打ち×AI ワークベンチ
 
-KabeUchiは、個人の思考深化とアイデア整理を支援するWebアプリケーションです。リッチテキストエディタで思考を記述し、複数のAIモデルとの対話やシームレスな音声入力を通じて、アイデアを効果的に発展させることができます。
+KabeUchi は、リッチテキストエディタでのメモ書きと複数 AI モデルとの対話を 1 つの画面で完結させる **「思考の壁打ちアプリ」** です。Supabase をバックエンドに採用し、Google アカウントによる認証、ドキュメント管理、画像付きチャット、Web 検索付き AI 応答など、知的生産を支える多彩な機能を備えています。
 
-## 機能
+> 🎙️ 音声入力には Chrome 拡張 **Voice In** の併用が便利です。後述の「Voice In 連携」を参照してください。
 
-- **リッチテキストエディタ**: Googleドキュメントのような直感的な操作感でメモを作成・編集。自動保存機能付き。
-- **マルチAIチャット機能**: 現在の文書を参照しながら複数のAIモデルと対話。
-  - 対応モデル: Google Gemini, Anthropic Claude, OpenAI GPT
-  - **Web検索機能 (Gemini)**: チャット時にAIが必要と判断、またはユーザーが指示した場合にWeb検索を実行し、最新情報を反映した回答を生成。参照元URLも表示。
-  - AIの応答はMarkdown形式で表示。
-  - 過去のチャット履歴をすべて参照して応答。
-  - チャット欄の幅と高さはドラッグで調整可能。
-  - 最後に選択したAIモデルを記憶。
-- **音声入力機能**: マイクからの音声をリアルタイムでテキスト化し、エディタに挿入。
-- **ドキュメント管理**: 作成したドキュメントの一覧表示、検索、並び替え、タイトル変更、複製、削除など。
-- **手動保存**: 好きなタイミングでドキュメントを保存可能。
-- **設定ページ**: 利用するAIモデルのAPIキーを設定・管理。
+---
 
-## スクリーンショット (例)
+## 目次
 
-<!-- ![KabeUchi Screenshot](link/to/screenshot.png) -->
-<!-- (将来的にスクリーンショットやGIFを追加) -->
+1. [主な機能](#主な機能)
+2. [スクリーンショット](#スクリーンショット)
+3. [インストール](#インストール)
+4. [環境変数と設定](#環境変数と設定)
+5. [使い方](#使い方)
+6. [Voice In 連携](#voice-in-連携)
+7. [技術スタック](#技術スタック)
+8. [デプロイ](#デプロイ)
+9. [ライセンス](#ライセンス)
 
-## インストール方法
+---
 
-### 前提条件
+## 主な機能
 
-- Python 3.9以上 (推奨)
-- pip (Pythonパッケージマネージャー)
+### エディタ
 
-### セットアップ手順
+- Quill.js 採用の **リッチテキストエディタ**。
+  - 見出し・箇条書き・コードブロックほか一般的な装飾に対応
+  - 自動保存 + 💾 手動保存ボタン
+  - フォントサイズを 50–150 % の範囲で変更可能
+- ドキュメントは Supabase の **`documents` テーブル** に保存され、どの端末からでも同期
 
-1.  リポジトリをクローンまたはダウンロード:
-    ```bash
-    git clone https://github.com/yaokisan/kabeuchi.git
-    cd kabeuchi
-    ```
+### AI チャット
 
-2.  仮想環境を作成して有効化:
-    ```bash
-    python -m venv venv
-    # Linux/macOS
-    source venv/bin/activate
-    # Windows (Command Prompt/PowerShell)
-    venv\Scripts\activate
-    ```
-
-3.  必要なパッケージをインストール:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4.  APIキーの設定:
-    以下のいずれかの方法でAPIキーを設定します。
-    - **方法1: 設定ページから設定 (推奨)**
-      1.  アプリケーションを起動後、サイドバーの「設定」メニューを開きます。
-      2.  利用したいAIモデルのAPIキーを入力し、「APIキーを保存」ボタンをクリックします。
-      3.  **重要:** 保存後、Flaskサーバーを再起動してください。
-    - **方法2: `.env` ファイルを直接編集**
-      プロジェクトルートに `.env` ファイルを作成し、以下のようにキーを記述します:
-      ```dotenv
-      SECRET_KEY=your_very_secret_random_string # Flaskのセッション管理用。必ず設定してください。
-      OPENAI_API_KEY=your_openai_api_key
-      GOOGLE_API_KEY=your_google_api_key
-      ANTHROPIC_API_KEY=your_anthropic_api_key
-      ```
-      `SECRET_KEY` はランダムな文字列を設定してください。各APIキーは、利用するモデルのものだけで構いません。
-
-## 使用方法
-
-1.  アプリケーションを起動:
-    ```bash
-    python app.py
-    ```
-
-2.  Webブラウザで以下のURLにアクセス:
-    ```
-    http://127.0.0.1:5000
-    ```
-
-3.  UIを使用してドキュメントの作成、編集、AIとの対話、音声入力などを行います:
-    -   初回アクセス時は、最後に編集していたドキュメント、または最新のドキュメントが開かれます。ドキュメントがない場合は新規作成されます。
-    -   左側のサイドバーから新規ドキュメントを作成、最近のドキュメントを開く、AIモデルを選択、音声入力のオン/オフを切り替え、設定ページへ移動できます。
-    -   中央のエディタでテキストを入力・編集します。内容は自動保存されますが、ヘッダーの手動保存ボタン💾でも保存できます。
-    -   右側のチャットエリアでAIと対話します。送信は `Cmd+Enter` (Mac) または `Ctrl+Enter` (Windows) です。Geminiモデル選択時は、チャット欄上部のチェックボックスでWeb検索機能の有効/無効を切り替えられます。
-    -   サイドバー下部の「ドキュメント管理」から、過去のドキュメントを管理できます。
-
-## 主要機能の詳細
-
-### リッチテキストエディタ
-
--   テキストの書式設定: 太字、イタリック、下線、取り消し線など
--   見出し、リスト、引用、コードブロック
--   自動保存機能 + 手動保存ボタン
-
-### AIチャット機能
-
--   現在のドキュメント内容と過去のチャット履歴全体をコンテキストとして、選択したAIモデルと対話
--   サポートされているモデル (例):
-    -   Google Gemini: `gemini-2.5-pro-exp-03-25`, `gemini-2.0-flash`
-    -   Anthropic Claude: `claude-3.7-sonnet` (思考モードの有効/無効を選択可能)
-    -   OpenAI ChatGPT: `gpt-4o`, `gpt-4.5-preview`
--   チャット欄はリサイズ可能
--   モデル選択は保持される
--   **Web検索 (Gemini)**: 「Web検索を有効にする」チェックボックスをオンにすると、AIが必要に応じて、またはユーザーの指示でWeb検索を実行し、参照元URLと共に回答します。
-
-### 音声入力機能
-
--   マイク入力からリアルタイムで文字起こし
--   無音検出による自動発話終了
--   認識結果はエディタの現在のカーソル位置に挿入
+- 右ペインに **チャット欄**。現在編集中のドキュメント全文と過去の会話をコンテキストとして送信
+- 対応モデル（2025-05 時点）
+  - Google Gemini: `gemini-2.0-flash`, `gemini-2.5-pro-exp-03-25`, `gemini-2.5-pro-preview-05-06`
+  - Anthropic Claude: `claude-3-7-sonnet-20250219`（思考モード On/Off 切替可）
+  - OpenAI: `gpt-4o`, `gpt-4.5-preview`, `o3`
+- **画像添付**: PNG/JPEG 画像をドラッグ or 📷 ボタンで添付し、Vision 対応モデルへ送信
+- **Web 検索 (Gemini)**
+  - 「Web検索を有効にする」チェックで、Gemini が DuckDuckGo 経由の検索を実行し最新情報を回答
+  - 参照 URL をリストで表示
+- チャット欄はドラッグで幅＆高さを可変、履歴リセットもワンクリック
 
 ### ドキュメント管理
 
--   最近更新したドキュメントの一覧表示 (サイドバー)
--   全ドキュメントのグリッド表示、検索、並び替え (管理ページ)
--   タイトル変更、複製、削除などの操作 (管理ページ)
+- `/manage` ページで全ドキュメントを **カード UI** で一覧
+- タイトル変更・複製・削除、検索、並び替え (更新順 / タイトル順)
 
-### 設定
+### 認証 / 設定
 
--   OpenAI, Google, Anthropic のAPIキーを設定・更新
+- **Google アカウントでログイン**（Supabase OAuth Flow）
+- 設定ページから OpenAI / Google / Anthropic の **API キーを安全に保存**
+  - `.env` が書き込み不可のホスティング環境でもランタイム変数に退避
+
+---
+
+## スクリーンショット
+
+<!-- 将来的に GIF や画像を追加 -->
+
+---
+
+## インストール
+
+### 前提
+
+- Python 3.9 以上
+- `pip`, `virtualenv` もしくは `python -m venv`
+
+### 手順
+
+```bash
+# 1. クローン
+$ git clone https://github.com/yaokisan/kabeuchi.git && cd kabeuchi
+
+# 2. 仮想環境 (推奨)
+$ python -m venv venv
+$ source venv/bin/activate  # Windows は venv\Scripts\activate
+
+# 3. 依存関係
+(venv)$ pip install -r requirements.txt
+
+# 4. 環境変数 (.env) を準備
+(venv)$ cp .env.example .env  # サンプルが無い場合は手動で作成
+# 必須項目については後述
+
+# 5. 起動
+(venv)$ python app.py
+# デフォルトで http://127.0.0.1:5001 が立ち上がります
+```
+
+---
+
+## 環境変数と設定
+
+下記は最小構成の例です。**いずれもダッシュボードで発行した値に置き換えてください。**
+
+```dotenv
+# Flask
+SECRET_KEY=your_random_secret
+
+# Supabase
+SUPABASE_URL=https://xxxxxxxx.supabase.co
+SUPABASE_JWT_SECRET=eyJhbGciOiJIUzI1NiIsInR5cCI6...
+# 任意: OAuth コールバック URL を固定したい場合
+# SUPABASE_REDIRECT=https://example.com/auth/callback
+
+# AI ベンダー API キー（使用するものだけで可）
+OPENAI_API_KEY=
+GOOGLE_API_KEY=
+ANTHROPIC_API_KEY=
+```
+
+API キーは **アプリ起動後に「設定 › API キー設定」から入力**→保存→サーバー再起動でも設定できます。
+
+---
+
+## 使い方
+
+1. ブラウザで `http://127.0.0.1:5001` にアクセスし、Google でログイン
+2. 左サイドバーの **「新規ドキュメント」** でメモ書きを開始
+3. 右ペインの **AI チャット** へ質問・要約依頼などを送信（`Cmd/Ctrl + Enter`）
+4. 必要に応じて **画像を添付**、または Gemini の **Web 検索** を ON
+5. 出力された Markdown を中央エディタへコピペ→さらに肉付け…という「壁打ち」を繰り返します
+
+---
+
+## Voice In 連携
+
+Chrome 拡張 [Voice In](https://chrome.google.com/webstore/detail/voice-in-voice-typing/pjnefijmagpdjfhhkpljicbbpicelgko) を使うと、KabeUchi のエディタ／チャット入力欄のどちらにも **リアルタイム音声入力** が可能です。
+
+1. Chrome ウェブストアから **Voice In** をインストール
+2. 拡張機能の設定で **"Allow voice typing on all text fields"** を有効化
+3. KabeUchi の入力欄をクリックし、拡張アイコンをクリック (もしくは設定したショートカット)
+4. マイクに向かって話すとテキストが入力 → AI チャットで文章構造化 → コピーしてエディタに貼り付け、というワークフローが快適に行えます
+
+> ヒント: Voice In の **"Auto-punctuation"** 機能を ON にすると句読点が自動で挿入され、後工程の編集コストがさらに下がります。
+
+---
 
 ## 技術スタック
 
--   **バックエンド**: Python, Flask, SQLAlchemy, Flask-SocketIO, python-dotenv, google-generativeai, openai, anthropic, duckduckgo-search
--   **フロントエンド**: HTML5, CSS3, JavaScript, Quill.js, marked.js, Socket.IO
--   **データベース**: SQLite
--   **外部API**: Google Generative AI API (Gemini), OpenAI API, Anthropic API, DuckDuckGo Search (via library)
+| 層 | 使用技術 |
+| --- | --- |
+| フロントエンド | HTML5, CSS3, JavaScript, Quill.js, marked.js, Socket.IO |
+| バックエンド | Python, Flask, Flask-SocketIO, python-dotenv |
+| データベース | Supabase (PostgreSQL) + SQLAlchemy 互換モデル |
+| AI API | Google Generative AI (Gemini), OpenAI, Anthropic |
+| その他 | DuckDuckGo Search API, JWT (認証), Vercel Serverless |
 
+---
+
+## デプロイ
+
+### Render
+
+WebSocket を利用するため、下記の Gunicorn コマンドでデプロイしてください。
+
+```bash
+gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 app:app
+```
+
+- モジュール名 (`app`) と アプリインスタンス (`app`) が一致していることを確認
+
+### Vercel (Serverless)
+
+リポジトリ直下の `vercel.json` と `api/index.py` は Vercel Python Runtime 用の設定です。特別な手順は不要で、AI API キーと Supabase 関連の環境変数をダッシュボードに登録すればデプロイできます。
+
+---
 
 ## ライセンス
 
-このプロジェクトは [MIT License](LICENSE) の下で提供されています。
-
-## Renderでのデプロイについて
-
-Renderでデプロイする際は、以下の点に注意してください：
-
-1. `gunicorn`コマンドで、`app:app`の形式で指定する場合：
-   - モジュール名とアプリケーションインスタンス名を正しく一致させる必要があります
-   - `app/__init__.py`にFlaskアプリケーションのインスタンスを`app`変数として定義しています
-
-2. WebSocketを使用するアプリケーションの場合：
-   - Gunicornのワーカークラスとして`geventwebsocket.gunicorn.workers.GeventWebSocketWorker`を指定
-   - ワーカー数を1に設定する（WebSocketの場合は必須）
-   ```
-   gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 app:app
-   ```
-
-### トラブルシューティング
-
-- `Failed to find attribute 'app' in 'app'`というエラーが発生した場合：
-  - `app/__init__.py`内で`app`変数が正しく定義されていることを確認
-  - または、Flaskアプリケーションインスタンスが定義されているモジュールとインスタンス名に合わせて起動コマンドを変更
+本リポジトリは MIT License で公開されています。
