@@ -265,7 +265,11 @@ def get_gemini_response(model_name, context, chat_history, user_message, chat_co
         if not ('1.5' in model_name or 'latest' in model_name):
              print(f"情報: より新しいモデル(gemini-1.5-flash-latestなど)の方が画像認識性能が高い可能性があります。現在のモデル: {model_name}")
 
-    generation_config = GenerationConfig()
+    # ---------------- GenerationConfig を最適化 ----------------
+    generation_config = GenerationConfig(
+        max_output_tokens=MAX_OUTPUT_TOKENS,
+        candidate_count=1,        # 複数候補生成は遅延の元なので 1 に固定
+    )
     model_kwargs = {"generation_config": generation_config}
     tool_config = None
     if enable_search:
@@ -276,7 +280,16 @@ def get_gemini_response(model_name, context, chat_history, user_message, chat_co
 
     model = genai.GenerativeModel(model_name, **model_kwargs)
 
-    # チャット履歴の作成 (★ 過去の画像は考慮しない)
+    # ---------------- コンテキスト・履歴サイズを制限 ----------------
+    # ドキュメント全文が非常に長い場合は末尾だけを使用
+    if context and len(context) > MAX_CONTEXT_CHARS:
+        context = context[-MAX_CONTEXT_CHARS:]
+
+    # チャット履歴は直近 N 件のみに絞る
+    if chat_history and len(chat_history) > MAX_CHAT_HISTORY_MSG:
+        chat_history = chat_history[-MAX_CHAT_HISTORY_MSG:]
+
+    # ---------------- チャット履歴の作成 (★ 過去の画像は考慮しない) ----------------
     gemini_history = []
     system_instruction_content = f"""あなたは親切で知識豊富なアシスタントです。
 ユーザーの質問に答えるために、提供された情報（ドキュメント内容、チャット履歴、必要に応じてWeb検索ツール、添付画像）を活用してください。
