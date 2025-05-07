@@ -11,7 +11,7 @@
     <!-- Socket.IO -->
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
     <!-- Auth token helper -->
-    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}?v=20240507"></script>
     <style>
         /* 画像プレビュー用の簡単なスタイル */
         #image-preview-container {
@@ -76,8 +76,6 @@
                 <a href="{{ url_for('index') }}" class="app-title-link">
                     <h2>KabeUchi</h2>
                 </a>
-                <span id="user-email" style="font-size:12px;color:var(--text-light);"></span>
-                <button onclick="logout()" class="secondary-btn" style="margin-left:8px;">ログアウト</button>
                 <!-- ▼▼▼ サイドバー非表示ボタン (ヘッダーへ移動) ▼▼▼ -->
                 <button id="toggle-sidebar-btn" class="toggle-panel-btn" title="サイドバーを隠す">◀</button>
                 <!-- ▲▲▲ サイドバー非表示ボタン ▲▲▲ -->
@@ -131,8 +129,11 @@
             <!-- 設定ページへのリンク -->
             <a href="{{ url_for('settings') }}" class="settings-link">設定</a>
 
-            <!-- 元のボタン位置 (削除) -->
-            <!-- <button id="toggle-sidebar-btn" class="toggle-panel-btn" title="サイドバーを隠す">◀</button> -->
+            <!-- ログイン中ユーザ表示 -->
+            <div class="login-info"><span class="user-email"></span> でログイン中</div>
+
+            <!-- ログアウトボタン（サイドバー下部） -->
+            <button onclick="logout()" class="secondary-btn logout-btn">ログアウト</button>
         </div>
         
         <!-- メインコンテンツエリア -->

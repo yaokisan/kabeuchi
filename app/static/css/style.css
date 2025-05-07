@@ -1213,3 +1213,15 @@ input:checked + .slider:before {
 .sidebar, .chat-area {
     transition: width 0.3s ease, padding 0.3s ease, border 0.3s ease;
 } 
+
+/* ログイン中表示 & ログアウトボタン */
+.login-info {
+    font-size: 12px;
+    color: var(--text-light);
+    text-align: center;
+    margin-top: 12px;
+}
+.logout-btn {
+    width: 100%;
+    margin-top: 6px;
+}

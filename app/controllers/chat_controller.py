@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app.models.database import (
     get_document as supa_get_document,
     get_chat_messages as supa_get_chat_messages,
