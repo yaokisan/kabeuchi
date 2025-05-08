@@ -1212,7 +1212,18 @@ input:checked + .slider:before {
 /* 各要素の transition も調整 */
 .sidebar, .chat-area {
     transition: width 0.3s ease, padding 0.3s ease, border 0.3s ease;
-} 
+}
+
+/* ================== 微調整: バグ報告リンク ================== */
+.fix-report-btn a {
+    font-size: 12px;        /* 既存テキストより小さめ */
+    text-decoration: underline; /* 一目でリンクと分かるように */
+}
+
+/* 同行パラグラフも同じサイズに */
+.fix-report-btn p {
+    font-size: 12px;
+}
 
 /* ログイン中表示 & ログアウトボタン */
 .login-info {

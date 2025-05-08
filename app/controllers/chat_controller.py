@@ -42,6 +42,21 @@ if ANTHROPIC_API_KEY:
 else:
     anthropic_client = None
 
+# -------------------- 504 回避用のチューニング定数 --------------------
+# Vercel の Serverless Function は 15 秒でタイムアウトするため、
+#   • 入力ドキュメントが長すぎる
+#   • チャット履歴が多すぎる
+#   • 出力トークンを大量に要求する
+# などの条件が重なると 504 となる。これを防ぐための上限値を設定する。
+
+# ドキュメント本文は末尾 MAX_CONTEXT_CHARS 文字だけを送る
+MAX_CONTEXT_CHARS = 15_000  # およそ 4k〜5k トークン相当
+# チャット履歴は直近 MAX_CHAT_HISTORY_MSG メッセージに丸める
+MAX_CHAT_HISTORY_MSG = 25
+# Gemini への出力トークン要求上限
+MAX_OUTPUT_TOKENS = 2_048
+# --------------------------------------------------------------------
+
 # --- Gemini用 Web検索ツールの定義 --- START ---
 web_search_func = FunctionDeclaration(
     name="web_search",
