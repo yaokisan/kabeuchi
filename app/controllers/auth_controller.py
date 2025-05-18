@@ -27,7 +27,8 @@ def login():
     url = (
         f"{SUPA_URL}/auth/v1/authorize?provider=google"
         f"&redirect_to={_build_redirect_url()}"
-        f"&prompt=select_account"
+        f"&access_type=offline"
+        f"&prompt=consent%20select_account"
     )
     return redirect(url)
 
@@ -46,8 +47,18 @@ def callback():
       (function(){
         const hash = location.hash.substring(1);   // 先頭の # を除去
         const params = new URLSearchParams(hash);
-        const token  = params.get('access_token');
-        if (token) localStorage.setItem('access_token', token);
+
+        // Supabase は access_token / refresh_token / expires_in が返る想定
+        const access    = params.get('access_token');
+        const refresh   = params.get('refresh_token');
+        const expiresIn = params.get('expires_in');
+
+        if (access)  localStorage.setItem('access_token',  access);
+        if (refresh) localStorage.setItem('refresh_token', refresh);
+        if (expiresIn){
+          const expiresAt = Date.now() + parseInt(expiresIn,10)*1000;
+          localStorage.setItem('access_expires_at', String(expiresAt));
+        }
         // 認証後はトップページへ遷移
         window.location.replace('/');
       })();

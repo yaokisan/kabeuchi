@@ -50,17 +50,17 @@ app.register_blueprint(auth_bp)
 @app.route('/')
 def index():
     """メインページを表示"""
-    return render_template('index.html')
+    return render_template('index.html', supabase_url=os.getenv('SUPABASE_URL'))
 
 @app.route('/manage')
 def manage_documents():
     """ドキュメント管理ページを表示"""
-    return render_template('manage.html')
+    return render_template('manage.html', supabase_url=os.getenv('SUPABASE_URL'))
 
 @app.route('/settings')
 def settings():
     """設定ページを表示"""
-    return render_template('settings.html')
+    return render_template('settings.html', supabase_url=os.getenv('SUPABASE_URL'))
 
 # ---------- 認証関連 ---------- #
 # ローカル HTML ログインページ（Google ボタンを表示）
@@ -68,7 +68,7 @@ def settings():
 @app.route('/login')
 def login_page():
     """トークン未保持時に表示されるシンプルなログインページ"""
-    return render_template('login.html')
+    return render_template('login.html', supabase_url=os.getenv('SUPABASE_URL'))
 
 if __name__ == '__main__':
     # デバッグモードでサーバー起動

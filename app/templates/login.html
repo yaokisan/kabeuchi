@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    {% if supabase_url %}<meta name="supabase-url" content="{{ supabase_url }}">{% endif %}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ログイン - KabeUchi</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
