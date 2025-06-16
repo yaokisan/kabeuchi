@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (docIdFromUrl) {
             // URLにIDがあればそれを読み込む
+            console.log('URLからドキュメントを読み込み開始:', docIdFromUrl);
             loadDocument(docIdFromUrl);
         } else {
             // URLにIDがない場合、ローカルストレージから最後のIDを取得
@@ -264,7 +265,11 @@ function setupDocumentEvents() {
  * 最近更新されたドキュメントをサイドバーに読み込む
  */
 function loadRecentDocuments() {
-    fetch('/api/document/recent')
+    fetch('/api/document/recent', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
         .then(response => response.json())
         .then(documents => {
             const recentDocsList = document.getElementById('recent-docs-list');
@@ -314,9 +319,14 @@ function loadRecentDocuments() {
  * @param {number} docId - ドキュメントID
  */
 function loadDocument(docId) {
+    console.log('[loadDocument] 開始:', docId);
+    
     // docIdが空や無効な値の場合は処理しない
     if (!docId || isNaN(parseInt(docId))) {
         console.error('無効なドキュメントIDです:', docId);
+        // 無効なIDの場合、ローカルストレージをクリアして再試行を防ぐ
+        localStorage.removeItem('lastActiveDocumentId');
+        window.location.replace('/');
         return;
     }
 
@@ -325,14 +335,31 @@ function loadDocument(docId) {
     // 最後にアクティブだったIDをローカルストレージに保存
     localStorage.setItem('lastActiveDocumentId', docId);
 
-    fetch(`/api/document/${docId}`)
+    console.log('[loadDocument] APIリクエスト開始:', `/api/document/${docId}`);
+    
+    fetch(`/api/document/${docId}`, {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
         .then(response => {
+            console.log('[loadDocument] レスポンス受信:', response.status);
+            
+            if (response.status === 401) {
+                console.error('[loadDocument] 認証エラー - ログイン画面にリダイレクト');
+                localStorage.removeItem('access_token');
+                window.location.href = '/login';
+                return;
+            }
+            
             if (!response.ok) {
-                throw new Error('ドキュメントが見つかりません');
+                throw new Error(`ドキュメントが見つかりません (${response.status})`);
             }
             return response.json();
         })
         .then(docData => {
+            console.log('[loadDocument] ドキュメントデータ受信:', docData);
+            
             // レスポンスが空の場合またはIDが一致しない場合はエラー
             if (!docData || docData.id != docId) {
                 throw new Error('不正なドキュメントデータです');
@@ -371,11 +398,20 @@ function loadDocument(docId) {
             updateSaveStatus('保存済み');
         })
         .catch(error => {
-            console.error('ドキュメントの読み込みに失敗しました:', error);
+            console.error('[loadDocument] ドキュメントの読み込みに失敗:', error);
             updateSaveStatus('エラー: ' + error.message);
             
             // エラー時にエディタを空にし、ローカルストレージのIDも削除
             editor.setContents([]);
+            localStorage.removeItem('lastActiveDocumentId');
+            
+            // 404エラーの場合、ドキュメントが存在しないので安全なページにリダイレクト
+            if (error.message.includes('見つかりません') || error.message.includes('404')) {
+                console.log('[loadDocument] ドキュメントが見つからないため、ホームページにリダイレクト');
+                setTimeout(() => {
+                    window.location.replace('/');
+                }, 1000);
+            }
             document.getElementById('document-title').value = '';
             currentDocumentId = null;
             localStorage.removeItem('lastActiveDocumentId');
@@ -394,7 +430,8 @@ function createNewDocument() {
     fetch('/api/document/create', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
         },
         body: JSON.stringify({
             title: defaultTitle,
@@ -466,15 +503,23 @@ function saveDocument() {
     fetch(`/api/document/${currentDocumentId}`, {
         method: 'PUT',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
         },
         body: JSON.stringify({
             content: content
         })
     })
     .then(response => {
+        if (response.status === 401) {
+            console.error('認証エラー - ログイン画面にリダイレクト');
+            localStorage.removeItem('access_token');
+            window.location.href = '/login';
+            return;
+        }
+        
         if (!response.ok) {
-            throw new Error('ドキュメントの保存に失敗しました');
+            throw new Error(`ドキュメントの保存に失敗しました (${response.status})`);
         }
         return response.json();
     })
@@ -510,15 +555,23 @@ function updateDocumentTitle(newTitle) {
     fetch(`/api/document/${currentDocumentId}`, {
         method: 'PUT',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
         },
         body: JSON.stringify({
             title: newTitle
         })
     })
     .then(response => {
+        if (response.status === 401) {
+            console.error('認証エラー - ログイン画面にリダイレクト');
+            localStorage.removeItem('access_token');
+            window.location.href = '/login';
+            return;
+        }
+        
         if (!response.ok) {
-            throw new Error('タイトルの更新に失敗しました');
+            throw new Error(`タイトルの更新に失敗しました (${response.status})`);
         }
         return response.json();
     })
@@ -577,7 +630,11 @@ function insertTextAtCursor(text) {
  */
 function loadLatestDocumentOrShowEmpty() {
     console.log('最新のドキュメントIDを取得します...');
-    fetch('/api/document/latest_id')
+    fetch('/api/document/latest_id', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
         .then(response => {
             if (!response.ok) {
                 // 404 Not Found などはドキュメントがないケースとして扱う

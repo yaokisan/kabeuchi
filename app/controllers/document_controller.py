@@ -15,8 +15,32 @@ document_bp = Blueprint('document', __name__, url_prefix='/api/document')
 @require_auth
 def list_documents():
     """全てのドキュメントをJSON形式で返す (Supabase)"""
-    documents = supa_get_documents() or []
-    return jsonify(documents)
+    try:
+        print(f"[DEBUG] Starting list_documents")
+        print(f"[DEBUG] User ID: {g.current_user}")
+        print(f"[DEBUG] JWT Token prefix: {g.jwt_token[:20]}...")
+        
+        # 直接Supabaseクライアントでクエリ
+        from supabase import create_client
+        import os
+        
+        url = os.getenv('SUPABASE_URL')
+        anon_key = os.getenv('SUPABASE_ANON_KEY')
+        supabase = create_client(url, anon_key)
+        supabase.postgrest.session.headers.update({
+            'Authorization': f'Bearer {g.jwt_token}'
+        })
+        
+        print(f"[DEBUG] Executing query...")
+        response = supabase.table('documents').select('*').order('updated_at', desc=True).execute()
+        print(f"[DEBUG] Query completed, found {len(response.data) if response.data else 0} documents")
+        
+        return jsonify(response.data or [])
+    except Exception as e:
+        print(f"[ERROR] {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @document_bp.route('/recent', methods=['GET'])
 @require_auth
@@ -48,6 +72,7 @@ def create_document():
     return jsonify(new_doc), 201
 
 @document_bp.route('/<int:doc_id>', methods=['PUT'])
+@require_auth
 def update_document(doc_id):
     """指定されたIDのドキュメントを更新 (Supabase)"""
     data = request.get_json()
@@ -57,6 +82,7 @@ def update_document(doc_id):
     return jsonify(updated_doc)
 
 @document_bp.route('/<int:doc_id>/duplicate', methods=['POST'])
+@require_auth
 def duplicate_document(doc_id):
     """指定されたIDのドキュメントを複製 (Supabase)"""
     document = supa_get_document(doc_id)
@@ -69,6 +95,7 @@ def duplicate_document(doc_id):
     return jsonify(new_doc), 201
 
 @document_bp.route('/<int:doc_id>', methods=['DELETE'])
+@require_auth
 def delete_document(doc_id):
     """指定されたIDのドキュメントを削除 (Supabase)"""
     # 削除結果は Supabase のレスポンスに含まれる (deleted rows)
@@ -78,6 +105,7 @@ def delete_document(doc_id):
     return jsonify({"message": "ドキュメントが削除されました", "id": doc_id})
 
 @document_bp.route('/latest_id', methods=['GET'])
+@require_auth
 def get_latest_document_id():
     """最新のドキュメントIDを返す (Supabase)"""
     docs = supa_get_documents() or []

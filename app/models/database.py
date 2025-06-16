@@ -13,11 +13,30 @@ def init_db():
   
 # Supabaseの機能を使用するヘルパー関数  
 def _supabase():
-    supabase = get_supabase()
-    # リクエストコンテキスト内かつ jwt_token があればセッションを上書き
+    from supabase import create_client
+    import os
+    
+    url = os.getenv('SUPABASE_URL')
+    anon_key = os.getenv('SUPABASE_ANON_KEY')
+    
+    # リクエストコンテキスト内かつ jwt_token があれば認証付きクライアントを作成
     if has_request_context() and hasattr(g, 'jwt_token'):
-        supabase.postgrest.auth(g.jwt_token)
-    return supabase
+        print(f"[DEBUG] Creating authenticated client with token: {g.jwt_token[:20]}...")
+        try:
+            supabase = create_client(url, anon_key)
+            # セッションを設定する代わりに、ヘッダーに直接設定
+            supabase.postgrest.session.headers.update({
+                'Authorization': f'Bearer {g.jwt_token}'
+            })
+            print(f"[DEBUG] Authenticated client created successfully")
+            return supabase
+        except Exception as e:
+            print(f"[DEBUG] Authenticated client creation failed: {str(e)}")
+            # フォールバック: 通常のクライアント
+            pass
+    
+    # デフォルト: 通常のクライアント
+    return get_supabase()
 
 def get_documents():  
     supabase = _supabase()  
