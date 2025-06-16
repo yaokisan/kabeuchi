@@ -8,6 +8,7 @@ from flask_socketio import SocketIO
 from app.models.database import db, init_db
 from app.controllers.document_controller import document_bp
 from app.controllers.chat_controller import chat_bp
+from app.controllers.chat_controller_async import chat_async_bp  # 非同期チャット追加
 from app.controllers.settings_controller import settings_bp
 from app.controllers.auth_controller import auth_bp
 
@@ -44,6 +45,7 @@ print("SocketIOを初期化しました")
 # 各種ブループリントの登録
 app.register_blueprint(document_bp)
 app.register_blueprint(chat_bp)
+app.register_blueprint(chat_async_bp)  # 非同期チャット追加
 app.register_blueprint(settings_bp)
 app.register_blueprint(auth_bp)
 
@@ -73,4 +75,4 @@ def login_page():
 if __name__ == '__main__':
     # デバッグモードでサーバー起動
     print("アプリケーションを起動します...")
-    socketio.run(app, debug=True, port=5001) 
+    socketio.run(app, debug=True, host='127.0.0.1', port=5001, allow_unsafe_werkzeug=True) 
