@@ -1,15 +1,15 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for
-from flask_socketio import SocketIO
+# 環境変数の読み込み（他のimportより先に実行）
 from dotenv import load_dotenv
 import os
+load_dotenv()
+
+from flask import Flask, render_template, jsonify, request, redirect, url_for
+from flask_socketio import SocketIO
 from app.models.database import db, init_db
 from app.controllers.document_controller import document_bp
 from app.controllers.chat_controller import chat_bp
 from app.controllers.settings_controller import settings_bp
 from app.controllers.auth_controller import auth_bp
-
-# 環境変数の読み込み
-load_dotenv()
 
 # Flaskアプリケーションの初期化
 app = Flask(__name__, 
