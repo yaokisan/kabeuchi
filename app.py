@@ -8,7 +8,7 @@ from flask_socketio import SocketIO
 from app.models.database import db, init_db
 from app.controllers.document_controller import document_bp
 from app.controllers.chat_controller import chat_bp
-# from app.controllers.chat_controller_async import chat_async_bp  # 非同期チャット追加（一時無効化）
+from app.controllers.chat_controller_async import chat_async_bp  # 非同期チャット追加
 from app.controllers.settings_controller import settings_bp
 from app.controllers.auth_controller import auth_bp
 
@@ -45,7 +45,7 @@ print("SocketIOを初期化しました")
 # 各種ブループリントの登録
 app.register_blueprint(document_bp)
 app.register_blueprint(chat_bp)
-# app.register_blueprint(chat_async_bp)  # 非同期チャット追加（一時無効化）
+app.register_blueprint(chat_async_bp)  # 非同期チャット追加
 app.register_blueprint(settings_bp)
 app.register_blueprint(auth_bp)
 

@@ -15,6 +15,7 @@ from app.models.database import (
     create_chat_message as supa_create_chat_message,
     delete_chat_messages as supa_delete_chat_messages,
 )
+from app.controllers.auth_controller import require_auth
 
 # 非同期処理用のAPIクライアント
 import openai
@@ -199,6 +200,7 @@ class AsyncAIClient:
 ai_client = AsyncAIClient()
 
 @chat_async_bp.route('/stream/<int:doc_id>', methods=['GET', 'POST'])
+@require_auth
 def stream_chat_response(doc_id):
     """ストリーミングチャット応答"""
     
